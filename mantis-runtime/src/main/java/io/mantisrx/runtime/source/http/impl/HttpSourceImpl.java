@@ -270,7 +270,6 @@ public class HttpSourceImpl<R, E, T> implements Source<T> {
 
     @Override
     public void close() throws IOException {
-        serversToRemoveSubscription.unsubscribe();
     }
 
     private Observable<Observable<T>> streamServers(Observable<ServerInfo> servers) {
