@@ -40,6 +40,7 @@ import io.mantisrx.server.master.resourcecluster.TaskExecutorStatusChange;
 import io.mantisrx.server.worker.SinkSubscriptionStateHandler.Factory;
 import io.mantisrx.server.worker.config.WorkerConfiguration;
 import io.mantisrx.shaded.com.google.common.base.Preconditions;
+import io.mantisrx.shaded.com.google.common.collect.ImmutableMap;
 import io.mantisrx.shaded.com.google.common.util.concurrent.AbstractScheduledService;
 import io.mantisrx.shaded.com.google.common.util.concurrent.Service;
 import io.mantisrx.shaded.com.google.common.util.concurrent.Service.State;
@@ -128,7 +129,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         String hostName = workerConfiguration.getExternalAddress();
         this.taskExecutorRegistration =
             new TaskExecutorRegistration(
-                taskExecutorID, clusterID, getAddress(), hostName, workerPorts, machineDefinition);
+                taskExecutorID, clusterID, getAddress(), hostName, workerPorts, machineDefinition, ImmutableMap.of());
         this.ioExecutor =
             Executors.newFixedThreadPool(
                 Hardware.getNumberCPUCores(),
