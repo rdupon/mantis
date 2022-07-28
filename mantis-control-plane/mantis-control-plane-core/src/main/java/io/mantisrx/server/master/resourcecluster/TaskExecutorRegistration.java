@@ -17,6 +17,7 @@ package io.mantisrx.server.master.resourcecluster;
 
 import io.mantisrx.common.WorkerPorts;
 import io.mantisrx.runtime.MachineDefinition;
+import java.util.Map;
 import lombok.Value;
 
 /**
@@ -40,4 +41,7 @@ public class TaskExecutorRegistration {
 
   // machine information identifies the cpu/mem/disk/network resources of the task executor.
   MachineDefinition machineDefinition;
+
+  // custom attributes describing the task executor
+  Map<String, String> taskExecutorAttributes;
 }

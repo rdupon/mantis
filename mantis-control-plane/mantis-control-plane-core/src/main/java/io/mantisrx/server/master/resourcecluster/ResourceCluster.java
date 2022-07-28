@@ -21,6 +21,7 @@ import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.worker.TaskExecutorGateway;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 import lombok.Value;
@@ -76,6 +77,12 @@ public interface ResourceCluster extends ResourceClusterGateway {
     CompletableFuture<TaskExecutorRegistration> getTaskExecutorInfo(TaskExecutorID taskExecutorID);
 
     CompletableFuture<TaskExecutorStatus> getTaskExecutorState(TaskExecutorID taskExecutorID);
+
+    CompletableFuture<Void> disabledTaskExecutorsAre(String attribute, String attributeValue);
+
+    CompletableFuture<Map<TaskExecutorID, WorkerId>> getTaskExecutorWorkerMapping();
+
+    CompletableFuture<Map<TaskExecutorID, WorkerId>> getTaskExecutorWorkerMapping(String attribute, String attributeValue);
 
     class NoResourceAvailableException extends Exception {
 

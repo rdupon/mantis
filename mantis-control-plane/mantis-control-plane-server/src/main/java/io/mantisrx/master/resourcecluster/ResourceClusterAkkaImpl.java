@@ -40,6 +40,7 @@ import io.mantisrx.server.master.resourcecluster.TaskExecutorRegistration;
 import io.mantisrx.server.worker.TaskExecutorGateway;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 class ResourceClusterAkkaImpl extends ResourceClusterGatewayAkkaImpl implements ResourceCluster {
@@ -169,5 +170,20 @@ class ResourceClusterAkkaImpl extends ResourceClusterGatewayAkkaImpl implements 
                 .ask(resourceClusterManagerActor, new GetTaskExecutorStatusRequest(taskExecutorID, clusterID), askTimeout)
                 .thenApply(TaskExecutorStatus.class::cast)
                 .toCompletableFuture();
+    }
+
+    @Override
+    public CompletableFuture<Void> disabledTaskExecutorsAre(String attribute, String attributeValue) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Map<TaskExecutorID, WorkerId>> getTaskExecutorWorkerMapping() {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Map<TaskExecutorID, WorkerId>> getTaskExecutorWorkerMapping(String attribute, String attributeValue) {
+        return null;
     }
 }

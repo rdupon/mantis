@@ -17,6 +17,7 @@ package io.mantisrx.server.master.resourcecluster;
 
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorReport.Available;
+import io.mantisrx.server.master.resourcecluster.TaskExecutorReport.Disabled;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorReport.Occupied;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonSubTypes;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonSubTypes.Type;
@@ -34,7 +35,8 @@ import lombok.Value;
     property = "type")
 @JsonSubTypes({
     @Type(value = Available.class, name = "available"),
-    @Type(value = Occupied.class, name = "occupied")
+    @Type(value = Occupied.class, name = "occupied"),
+    @Type(value = Disabled.class, name = "disabled")
 })
 public interface TaskExecutorReport {
   @Value
@@ -45,11 +47,18 @@ public interface TaskExecutorReport {
     WorkerId workerId;
   }
 
+  @Value
+  class Disabled implements TaskExecutorReport {}
+
   static Available available() {
     return new Available();
   }
 
   static Occupied occupied(WorkerId workerId) {
     return new Occupied(workerId);
+  }
+
+  static Disabled disabled() {
+      return new Disabled();
   }
 }
