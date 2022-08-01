@@ -20,6 +20,7 @@ import io.mantisrx.common.Ack;
 import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.worker.TaskExecutorGateway;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -78,7 +79,7 @@ public interface ResourceCluster extends ResourceClusterGateway {
 
     CompletableFuture<TaskExecutorStatus> getTaskExecutorState(TaskExecutorID taskExecutorID);
 
-    CompletableFuture<Void> disabledTaskExecutorsAre(String attribute, String attributeValue);
+    CompletableFuture<Void> disabledTaskExecutorsAre(Map<String, String> attributes, Instant expiry);
 
     CompletableFuture<Map<TaskExecutorID, WorkerId>> getTaskExecutorWorkerMapping();
 
@@ -97,6 +98,7 @@ public interface ResourceCluster extends ResourceClusterGateway {
         long numAvailableTaskExecutors;
         long numOccupiedTaskExecutors;
         long numAssignedTaskExecutors;
+        long numDisabledTaskExecutors;
     }
 
     @Value

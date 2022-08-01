@@ -44,4 +44,8 @@ public class TaskExecutorRegistration {
 
   // custom attributes describing the task executor
   Map<String, String> taskExecutorAttributes;
+
+  public boolean containsAttributes(Map<String, String> requiredAttributes) {
+      return taskExecutorAttributes.entrySet().containsAll(requiredAttributes.entrySet());
+  }
 }
