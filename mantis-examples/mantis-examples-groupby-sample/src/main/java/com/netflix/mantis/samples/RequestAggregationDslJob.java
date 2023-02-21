@@ -79,8 +79,7 @@ public class RequestAggregationDslJob extends MantisJobProvider<String> {
                     return x.getIpAddress();
                 }
             })
-            .window(WindowSpec.timed(Duration.ofSeconds(5)))
-            .reduce(new ReduceFunction<RequestEvent, RequestAggregation>() {
+            .windowAndReduce(WindowSpec.timed(Duration.ofSeconds(5)), new ReduceFunction<RequestEvent, RequestAggregation>() {
                 @Override
                 public RequestAggregation initialValue() {
                     return RequestAggregation.builder().build();
@@ -97,8 +96,7 @@ public class RequestAggregationDslJob extends MantisJobProvider<String> {
             })
             .materialize()
             .keyBy(x -> "")
-            .window(WindowSpec.timed(Duration.ofSeconds(5)))
-            .reduce(new ReduceFunction<RequestAggregation, AggregationReport>() {
+            .windowAndReduce(WindowSpec.timed(Duration.ofSeconds(5)), new ReduceFunction<RequestAggregation, AggregationReport>() {
                 @Override
                 public AggregationReport initialValue() {
                     return new AggregationReport(new ConcurrentHashMap<>());

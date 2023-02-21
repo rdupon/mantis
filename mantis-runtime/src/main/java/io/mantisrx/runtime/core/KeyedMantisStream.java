@@ -27,6 +27,8 @@ public interface KeyedMantisStream<K, IN> {
 
     KeyedMantisStream<K, IN> filter(FilterFunction<IN> filterFn);
 
+    <OUT> MantisStream<OUT> windowAndReduce(WindowSpec spec, ReduceFunction<IN, OUT> reduceFn);
+
     KeyedMantisStream<K, IN> window(WindowSpec spec);
 
     <OUT> MantisStream<OUT> reduce(ReduceFunction<IN, OUT> reduceFn);

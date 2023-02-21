@@ -54,6 +54,16 @@ class KeyedMantisStreamImpl<K, T> implements KeyedMantisStream<K, T> {
         return updateGraph(filterFn);
     }
 
+    @Override
+    public <OUT> MantisStream<OUT> windowAndReduce(WindowSpec spec, ReduceFunction<T, OUT> reduceFn) {
+        this.graph.putEdge(currNode, currNode, new WindowFunction<>(spec));
+        OperandNode<OUT> node = OperandNode.create(graph, "reduceFunctionOut");
+        this.graph.putEdge(currNode, node, reduceFn);
+        this.graph.putEdge(node, node, MantisFunction.empty());
+        return new MantisStreamImpl<>(node, graph);
+    }
+
+    @Override
     public KeyedMantisStream<K, T> window(WindowSpec spec) {
         this.graph.putEdge(currNode, currNode, new WindowFunction<>(spec));
         return new KeyedMantisStreamImpl<>(currNode, graph);

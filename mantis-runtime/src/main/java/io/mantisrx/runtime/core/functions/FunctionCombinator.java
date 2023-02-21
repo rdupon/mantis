@@ -24,11 +24,17 @@ import io.mantisrx.runtime.computation.ScalarComputation;
 import io.mantisrx.runtime.core.WindowSpec;
 import io.mantisrx.shaded.com.google.common.annotations.VisibleForTesting;
 import io.mantisrx.shaded.com.google.common.collect.ImmutableList;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import rx.Observable;
+import rx.Producer;
+import rx.Subscriber;
 
 public class FunctionCombinator<T, R> {
 
@@ -72,6 +78,80 @@ public class FunctionCombinator<T, R> {
                         current = current.map(e -> ((MapFunction) fn).apply(e));
                     } else if (fn instanceof FlatMapFunction) {
                         current = current.flatMap(e -> Observable.from(((FlatMapFunction) fn).apply(e)));
+                    } else if (fn instanceof ProcessFunction) {
+                        ProcessFunction pfn = (ProcessFunction) fn;
+                        current = current.lift((Observable.Operator<Object, Object>) subscriber -> {
+                            Collector<Object> out = new Collector<>();
+                            ProcessFunction.Context ctx = new ProcessFunction.Context() {
+                                TimerService timerService = new TimerService() {
+                                    private final ConcurrentHashMap<Instant, Instant> timers = new ConcurrentHashMap();
+                                    private final PriorityBlockingQueue<Instant> pqueue = new PriorityBlockingQueue<>();
+
+                                    @Override
+                                    public Instant currentProcessingTime() {
+                                        return Instant.now();
+                                    }
+
+                                    @Override
+                                    public void registerProcessingTimer(Instant instant) {
+                                        timers.computeIfAbsent(instant, k -> k);
+                                        pqueue.add(instant);
+                                    }
+
+                                    @Override
+                                    public void deleteProcessingTimer(Instant instant) {
+                                        timers.remove(instant);
+                                        pqueue.removeIf(x -> x.equals(instant));
+                                    }
+                                };
+
+                                @Override
+                                public TimerService timerService() {
+                                    return timerService;
+                                }
+
+                                @Override
+                                public Instant timestamp() {
+                                    // always processing time
+                                    return timerService.currentProcessingTime();
+                                }
+                            };
+                            return new Subscriber<Object>(subscriber) {
+                                @Override
+                                public void onCompleted() {
+                                    if (subscriber.isUnsubscribed()) {
+                                        return;
+                                    }
+                                    subscriber.onCompleted();
+                                }
+
+                                @Override
+                                public void onError(Throwable e) {
+                                    if (subscriber.isUnsubscribed()) {
+                                        return;
+                                    }
+                                    subscriber.onError(e);
+                                }
+
+                                @Override
+                                public void onNext(Object o) {
+                                    if (subscriber.isUnsubscribed()) {
+                                        return;
+                                    }
+                                    pfn.processElement(o, ctx, out);
+                                    Optional<Object> item;
+                                    while ((item = out.getQueue().poll()) != null) {
+                                        subscriber.onNext(item.orElse(null));
+                                    }
+
+                                }
+
+                                @Override
+                                public void setProducer(Producer p) {
+                                    super.setProducer(p);
+                                }
+                            };
+                        });
                     }
                 }
                 return (Observable<V>) current;

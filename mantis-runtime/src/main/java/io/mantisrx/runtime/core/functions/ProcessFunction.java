@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Netflix, Inc.
+ * Copyright 2023 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-package io.mantisrx.runtime.core;
+package io.mantisrx.runtime.core.functions;
 
-import java.util.Optional;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import io.mantisrx.runtime.core.Collector;
+import java.time.Instant;
 
-public class Collector<OUT> {
+public interface ProcessFunction<IN, OUT> extends MantisFunction {
 
-    ConcurrentLinkedQueue<Optional<OUT>> queue = new ConcurrentLinkedQueue<>();
+    void processElement(IN in, Context context, Collector<OUT> out);
 
-    void add(OUT element) {
-        queue.add(Optional.ofNullable(element));
+    void onTimer(Instant instant, Context context, Collector<OUT> out);
+
+    interface Context {
+        TimerService timerService();
+
+        Instant timestamp();
     }
 
-    Iterable<Optional<OUT>> iterable() {
-        return queue;
-    }
 }
