@@ -42,6 +42,10 @@ configurations {
 }
 
 dependencies {
+    shaded libraries.flinkRpcApi
+    shaded libraries.flinkRpcImpl
+    shaded libraries.flinkCore
+
     // Libraries to be shaded. Add their dependencies that do not need to be shaded as 'implementation' dependencies
     shaded "com.fasterxml.jackson.core:jackson-annotations:$jacksonVersion"
     shaded "com.fasterxml.jackson.core:jackson-core:$jacksonVersion"
@@ -82,7 +86,8 @@ shadowJar {
     relocate 'org.apache.jute', 'io.mantisrx.shaded.org.apache.jute'
     relocate 'jline', 'io.mantisrx.shaded.jline'
     relocate 'org.jboss.netty', 'io.mantisrx.shaded.org.jboss.netty'
-
+    relocate 'scala', 'io.mantisrx.shaded.scala'
+    relocate 'org.apache.flink', 'io.mantisrx.shaded.org.apache.flink'
     mergeServiceFiles()
 }
 
