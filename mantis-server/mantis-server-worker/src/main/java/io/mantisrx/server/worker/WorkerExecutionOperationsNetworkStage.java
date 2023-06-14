@@ -636,16 +636,15 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
                 subscriptionStateHandler = null;
             }
         }
-
-        Closeables.combine(closeables).close();
-        scheduledExecutorService.shutdownNow();
-        logger.info("Shutdown completed");
-
         if (jobStatus != null) {
             logger.info("[fdc-91] getCurrentHeartbeatStatus");
             jobStatus.onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
         } else {
             logger.info("[fdc-91] dang!");
         }
+
+        Closeables.combine(closeables).close();
+        scheduledExecutorService.shutdownNow();
+        logger.info("Shutdown completed");
     }
 }
