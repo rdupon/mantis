@@ -628,7 +628,16 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
 
     @Override
     public void shutdownStage() throws IOException  {
-        logger.info("Shutdown initiated");
+        logger.info("[fdc-91] Shutdown initiated");
+        logger.info("[fdc-91] jobStatus {}", jobStatus);
+        if (jobStatus != null) {
+            logger.info("[fdc-91] getCurrentHeartbeatStatus");
+            jobStatus.onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
+        } else {
+            logger.info("[fdc-91] dang!");
+        }
+        logger.info("[fdc-91] Not sure 1");
+
         if (subscriptionStateHandler != null) {
             try {
                 subscriptionStateHandler.stopAsync().awaitTerminated(30, TimeUnit.SECONDS);
@@ -638,15 +647,11 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
                 subscriptionStateHandler = null;
             }
         }
-        if (jobStatus != null) {
-            logger.info("[fdc-91] getCurrentHeartbeatStatus");
-            jobStatus.onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
-        } else {
-            logger.info("[fdc-91] dang!");
-        }
+
+        logger.info("[fdc-91] Not sure 2");
 
         Closeables.combine(closeables).close();
         scheduledExecutorService.shutdownNow();
-        logger.info("Shutdown completed");
+        logger.info("[fdc-91] Shutdown completed");
     }
 }
