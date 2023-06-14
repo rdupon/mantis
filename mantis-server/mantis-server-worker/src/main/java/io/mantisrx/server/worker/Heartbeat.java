@@ -71,7 +71,7 @@ class Heartbeat {
         singleUsePayloads.offer(new PayloadPair(name, value));
     }
 
-    Status getCurrentHeartbeatStatus() {
+    Status getCurrentHeartbeatStatus(boolean isFailed) {
         List<Status.Payload> payloadList = new ArrayList<>();
         logger.debug("#Payloads = " + payloads.size());
         for (Map.Entry<String, String> entry : payloads.entrySet()) {
@@ -87,14 +87,23 @@ class Heartbeat {
             for (Map.Entry<String, String> entry : suplds.entrySet())
                 payloadList.add(new Status.Payload(entry.getKey(), entry.getValue()));
         }
-        Status status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Noop);
+        Status status;
+        if (isFailed) {
+            status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Failed);
+        } else {
+            status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Noop);
+        }
         host.ifPresent(status::setHostname);
         if (!payloadList.isEmpty())
             status.setPayloads(payloadList);
         return status;
     }
 
-    private static class PayloadPair {
+    Status getCurrentHeartbeatStatus() {
+        return getCurrentHeartbeatStatus(false);
+    }
+
+        private static class PayloadPair {
 
         String name;
         String value;

@@ -106,6 +106,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
     private final List<Closeable> closeables = new ArrayList<>();
     private final ScheduledExecutorService scheduledExecutorService;
     private final ClassLoader classLoader;
+    private RunningWorker rw;
 
     public WorkerExecutionOperationsNetworkStage(
         Observer<VirtualMachineTaskStatus> vmTaskStatusObserver,
@@ -209,6 +210,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
     }
 
     private Closeable startSendingHeartbeats(final Observer<Status> jobStatus, double networkMbps) {
+        logger.info("[fdc-91] startSendingHeartbeats");
         heartbeatRef.get().setPayload("" + StatusPayloads.Type.SubscriptionState, "" + false);
         Future<?> heartbeatFuture =
             scheduledExecutorService
@@ -310,7 +312,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
             rwBuilder = rwBuilder.stage((StageConfig) setup.getMantisJob()
                     .getStages().get(executionRequest.getStage() - 1));
         }
-        final RunningWorker rw = rwBuilder.build();
+        rw = rwBuilder.build();
 
         if (rw.getStageNum() == rw.getTotalStagesNet()) {
             // set up subscription state handler only for sink (last) stage
@@ -343,7 +345,8 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
                             setup.getParameters());
             final Context context = generateContext(parameters, serviceLocator, workerInfo, MetricsRegistry.getInstance(),
                     () -> {
-                        rw.signalCompleted();
+                logger.info("[fdc-91] rw.signalCompleted");
+                rw.signalCompleted();
                         // wait for completion signal to go to the master and us getting killed. Upon timeout, exit.
                         try {Thread.sleep(60000);} catch (InterruptedException ie) {
                             logger.warn("Unexpected exception sleeping: " + ie.getMessage());
@@ -636,5 +639,10 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
         Closeables.combine(closeables).close();
         scheduledExecutorService.shutdownNow();
         logger.info("Shutdown completed");
+
+        if (rw != null) {
+            logger.info("[fdc-91] getCurrentHeartbeatStatus");
+            rw.getJobStatus().onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
+        }
     }
 }
