@@ -106,7 +106,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
     private final List<Closeable> closeables = new ArrayList<>();
     private final ScheduledExecutorService scheduledExecutorService;
     private final ClassLoader classLoader;
-    private RunningWorker rw;
+    private Observer<Status> jobStatus;
 
     public WorkerExecutionOperationsNetworkStage(
         Observer<VirtualMachineTaskStatus> vmTaskStatusObserver,
@@ -211,6 +211,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
 
     private Closeable startSendingHeartbeats(final Observer<Status> jobStatus, double networkMbps) {
         logger.info("[fdc-91] startSendingHeartbeats");
+        this.jobStatus = jobStatus;
         heartbeatRef.get().setPayload("" + StatusPayloads.Type.SubscriptionState, "" + false);
         Future<?> heartbeatFuture =
             scheduledExecutorService
@@ -312,7 +313,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
             rwBuilder = rwBuilder.stage((StageConfig) setup.getMantisJob()
                     .getStages().get(executionRequest.getStage() - 1));
         }
-        rw = rwBuilder.build();
+        final RunningWorker rw = rwBuilder.build();
 
         if (rw.getStageNum() == rw.getTotalStagesNet()) {
             // set up subscription state handler only for sink (last) stage
@@ -640,9 +641,11 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
         scheduledExecutorService.shutdownNow();
         logger.info("Shutdown completed");
 
-        if (rw != null) {
+        if (jobStatus != null) {
             logger.info("[fdc-91] getCurrentHeartbeatStatus");
-            rw.getJobStatus().onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
+            jobStatus.onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
+        } else {
+            logger.info("[fdc-91] dang!");
         }
     }
 }
