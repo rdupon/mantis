@@ -277,6 +277,8 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
 
         ExecuteStageRequest executionRequest = setup.getExecuteStageRequest().getRequest();
 
+        jobStatus = setup.getStatus();
+
         // Initialize the schedulingInfo observable for current job and mark it shareable to be reused by anyone interested in this data.
         //Observable<JobSchedulingInfo> selfSchedulingInfo = mantisMasterApi.schedulingChanges(executionRequest.getJobId()).switchMap((e) -> Observable.just(e).repeatWhen(x -> x.delay(5 , TimeUnit.SECONDS))).subscribeOn(Schedulers.io()).share();
 
