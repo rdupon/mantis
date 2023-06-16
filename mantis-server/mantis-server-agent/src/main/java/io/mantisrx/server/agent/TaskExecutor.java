@@ -423,6 +423,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         @Override
         public void shutDown() throws Exception {
+            log.info("[fdc-91] ResourceManagerGatewayCxn shutdown.");
+
             gateway
                 .disconnectTaskExecutor(
                     new TaskExecutorDisconnection(taskExecutorRegistration.getTaskExecutorID(),
@@ -596,6 +598,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         validateRunsInMainThread();
         if (this.currentTask != null) {
             try {
+                log.info("[fdc-91] TaskExecutor stopCurrentTask: {}", currentTask.getWorkerId());
+
                 if (this.currentTask.state().ordinal() <= Service.State.RUNNING.ordinal()) {
                     listeners.enqueue(getTaskCancellingEvent(currentTask));
                     CompletableFuture<Void> stopTaskFuture =
@@ -612,6 +616,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             getIOExecutor().execute(listeners::dispatch);
                         }, getMainThreadExecutor());
                 } else {
+                    log.info("[fdc-91] TaskExecutor stopCurrentTask but task is not running.");
+
                     return CompletableFuture.completedFuture(null);
                 }
             } catch (Exception e) {
@@ -621,6 +627,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 getIOExecutor().execute(listeners::dispatch);
             }
         } else {
+            log.info("[fdc-91] TaskExecutor stopCurrentTask but task is null.");
             return CompletableFuture.completedFuture(null);
         }
     }
