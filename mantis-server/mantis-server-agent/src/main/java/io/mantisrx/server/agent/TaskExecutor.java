@@ -636,7 +636,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
         } else {
             log.info("[fdc-91] TaskExecutor stopCurrentTask but task is null.");
-            updateExecutionStatus();
+            final Status failedStatus = new Status(currentRequest.getJobId(), currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber(),
+                Status.TYPE.INFO, getWorkerStringPrefix(currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber()) + " failed. during initialization...",
+                MantisJobState.Failed);
+            updateExecutionStatus(failedStatus);
             return CompletableFuture.completedFuture(null);
         }
     }
