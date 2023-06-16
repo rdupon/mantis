@@ -71,6 +71,10 @@ class Heartbeat {
         singleUsePayloads.offer(new PayloadPair(name, value));
     }
 
+    private String getWorkerStringPrefix(int stageNum, int index, int number) {
+        return "stage " + stageNum + " worker index=" + index + " number=" + number;
+    }
+
     Status getCurrentHeartbeatStatus(boolean isFailed) {
         List<Status.Payload> payloadList = new ArrayList<>();
         logger.debug("#Payloads = " + payloads.size());
@@ -89,7 +93,10 @@ class Heartbeat {
         }
         Status status;
         if (isFailed) {
-            status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Failed);
+//            status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Failed);
+            status = new Status(jobId, stageNumber, workerIndex, workerNumber,
+                Status.TYPE.INFO, getWorkerStringPrefix(stageNumber, workerIndex, workerNumber) + " failed. error: not sure...",
+                MantisJobState.Failed);
         } else {
             status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Noop);
         }
