@@ -628,11 +628,17 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
 
     @Override
     public void shutdownStage() throws IOException  {
+        /**
+         * Another way of resubmitting is the following:
+         * https://mantisapi.us-east-2.test.netflix.net/api/jobs/resubmitWorker
+         * payload: {"JobId":"myJob-1","user":"username","workerNumber":3,"reason":"test worker resubmit"}:
+         */
         logger.info("[fdc-91] Shutdown initiated");
         logger.info("[fdc-91] jobStatus {}", jobStatus);
         if (jobStatus != null) {
             logger.info("[fdc-91] getCurrentHeartbeatStatus");
             jobStatus.onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
+//            rw.signalFailed();
         } else {
             logger.info("[fdc-91] dang!");
         }

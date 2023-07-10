@@ -686,13 +686,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }, getMainThreadExecutor())
             .thenCompose(Function.identity())
             .whenCompleteAsync((dontCare, throwable) -> {
-                try {
-                    log.info("[fdc-91] Send message INFO, failed");
+                log.info("[fdc-91] Send message INFO, failed");
 
-                    final Status failedStatus = new Status(currentRequest.getJobId(), currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber(),
-                        Status.TYPE.INFO, getWorkerStringPrefix(currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber()) + " failed. during initialization...",
-                        MantisJobState.Failed);
-                    updateExecutionStatus(failedStatus);
+                final Status failedStatus = new Status(currentRequest.getJobId(), currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber(),
+                    Status.TYPE.INFO, getWorkerStringPrefix(currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber()) + " failed. during initialization...",
+                    MantisJobState.Failed);
+                updateExecutionStatus(failedStatus);
+                try {
                     classLoaderHandle.close();
                 } catch (Exception e) {
                     log.error("Failed to close classloader handle correctly", e);
