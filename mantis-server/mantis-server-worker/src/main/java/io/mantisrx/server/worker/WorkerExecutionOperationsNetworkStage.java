@@ -462,6 +462,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
             logger.info("Calling lifecycle.shutdown()");
             lifecycle.shutdown();
         } catch (Throwable t) {
+            logger.info("[fdc-91] problem problem during executing stage... shutting down...");
             rw.signalFailed(t);
             shutdownStage();
         }
