@@ -507,6 +507,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }, 0, TimeUnit.MILLISECONDS);
         } catch (Exception ex) {
             log.error("Failed to submit task, request: {}", wrappedRequest.getRequest(), ex);
+            log.info("[fdc-91] Send message INFO, failed");
+
+            final Status failedStatus = new Status(currentRequest.getJobId(), currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber(),
+                Status.TYPE.INFO, getWorkerStringPrefix(currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber()) + " failed. during initialization...",
+                MantisJobState.Failed);
+            updateExecutionStatus(failedStatus);
             listeners.enqueue(getTaskFailedEvent(null, ex));
         }
         finally {
@@ -686,12 +692,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }, getMainThreadExecutor())
             .thenCompose(Function.identity())
             .whenCompleteAsync((dontCare, throwable) -> {
-                log.info("[fdc-91] Send message INFO, failed");
-
-                final Status failedStatus = new Status(currentRequest.getJobId(), currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber(),
-                    Status.TYPE.INFO, getWorkerStringPrefix(currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber()) + " failed. during initialization...",
-                    MantisJobState.Failed);
-                updateExecutionStatus(failedStatus);
                 try {
                     classLoaderHandle.close();
                 } catch (Exception e) {
