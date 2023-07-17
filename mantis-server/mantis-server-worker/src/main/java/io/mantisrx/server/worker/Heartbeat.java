@@ -93,9 +93,8 @@ class Heartbeat {
         }
         Status status;
         if (isFailed) {
-//            status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Failed);
             status = new Status(jobId, stageNumber, workerIndex, workerNumber,
-                Status.TYPE.INFO, getWorkerStringPrefix(stageNumber, workerIndex, workerNumber) + " failed. error: not sure...",
+                Status.TYPE.INFO, getWorkerStringPrefix(stageNumber, workerIndex, workerNumber) + " failed",
                 MantisJobState.Failed);
         } else {
             status = new Status(jobId, stageNumber, workerIndex, workerNumber, Status.TYPE.HEARTBEAT, "heartbeat", MantisJobState.Noop);

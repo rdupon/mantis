@@ -44,17 +44,15 @@ public class TaskStatusUpdateHandlerImpl implements TaskStatusUpdateHandler {
 
     @Override
     public void onStatusUpdate(Status status) {
-        log.info("[fdc-91] onStatusUpdate: {}", status);
         masterMonitor
                 .updateStatus(status)
                 .whenComplete((ack, throwable) -> {
                     if (ack != null) {
-                        log.info("[fdc-91] onStatusUpdate ----> done {}", status);
                         workerSentHeartbeats.increment();
                     } else {
                         Throwable cleaned = ExceptionUtils.stripExecutionException(throwable);
                         failureCounter.increment();
-                        log.error("[fdc-91] Failed to send status update", cleaned);
+                        log.error("Failed to send status update", cleaned);
                     }
                 });
     }

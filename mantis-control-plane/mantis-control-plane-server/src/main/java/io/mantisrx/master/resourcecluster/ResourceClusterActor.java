@@ -619,26 +619,19 @@ class ResourceClusterActor extends AbstractActorWithTimers {
     private void onTaskExecutorDisconnection(TaskExecutorDisconnection disconnection) {
         setupTaskExecutorStateIfNecessary(disconnection.getTaskExecutorID());
         try {
-            log.info("[fdc-91] onTaskExecutorDisconnection: {}", disconnection);
             disconnectTaskExecutor(disconnection.getTaskExecutorID());
-            log.info("[fdc-91] onTaskExecutorDisconnection --- finsh disconnectTaskExecutor");
             sender().tell(Ack.getInstance(), self());
         } catch (IllegalStateException e) {
-            log.info("[fdc-91] onTaskExecutorDisconnection --- problem", e);
             sender().tell(new Status.Failure(e), self());
         }
     }
 
     private void disconnectTaskExecutor(TaskExecutorID taskExecutorID) {
         final TaskExecutorState state = this.executorStateManager.get(taskExecutorID);
-        log.info("[fdc-91] disconnectTaskExecutor: {} -- {}", taskExecutorID, state);
         boolean stateChange = state.onDisconnection();
         if (stateChange) {
-            log.info("[fdc-91] disconnectTaskExecutor2222: {}", stateChange);
             this.executorStateManager.archive(taskExecutorID);
-            log.info("[fdc-91] disconnectTaskExecutor33333");
             getTimers().cancel(getHeartbeatTimerFor(taskExecutorID));
-            log.info("[fdc-91] cancel timers!");
         }
     }
 

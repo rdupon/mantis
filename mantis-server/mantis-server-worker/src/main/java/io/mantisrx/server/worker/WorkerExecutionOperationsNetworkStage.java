@@ -210,7 +210,6 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
     }
 
     private Closeable startSendingHeartbeats(final Observer<Status> jobStatus, double networkMbps) {
-        logger.info("[fdc-91] startSendingHeartbeats");
         this.jobStatus = jobStatus;
         heartbeatRef.get().setPayload("" + StatusPayloads.Type.SubscriptionState, "" + false);
         Future<?> heartbeatFuture =
@@ -348,7 +347,6 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
                             setup.getParameters());
             final Context context = generateContext(parameters, serviceLocator, workerInfo, MetricsRegistry.getInstance(),
                     () -> {
-                logger.info("[fdc-91] rw.signalCompleted");
                 rw.signalCompleted();
                         // wait for completion signal to go to the master and us getting killed. Upon timeout, exit.
                         try {Thread.sleep(60000);} catch (InterruptedException ie) {
@@ -462,7 +460,7 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
             logger.info("Calling lifecycle.shutdown()");
             lifecycle.shutdown();
         } catch (Throwable t) {
-            logger.info("[fdc-91] problem problem during executing stage... shutting down...");
+            logger.warn("Error during executing stage; shutting down.", t);
             rw.signalFailed(t);
             shutdownStage();
         }
@@ -629,22 +627,9 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
 
     @Override
     public void shutdownStage() throws IOException  {
-        /**
-         * Another way of resubmitting is the following:
-         * https://mantisapi.us-east-2.test.netflix.net/api/jobs/resubmitWorker
-         * payload: {"JobId":"myJob-1","user":"username","workerNumber":3,"reason":"test worker resubmit"}:
-         */
-        logger.info("[fdc-91] Shutdown initiated");
-        logger.info("[fdc-91] jobStatus {}", jobStatus);
         if (jobStatus != null) {
-            logger.info("[fdc-91] getCurrentHeartbeatStatus");
             jobStatus.onNext(heartbeatRef.get().getCurrentHeartbeatStatus(true));
-//            rw.signalFailed();
-        } else {
-            logger.info("[fdc-91] dang!");
         }
-        logger.info("[fdc-91] Not sure 1");
-
         if (subscriptionStateHandler != null) {
             try {
                 subscriptionStateHandler.stopAsync().awaitTerminated(30, TimeUnit.SECONDS);
@@ -655,10 +640,8 @@ public class WorkerExecutionOperationsNetworkStage implements WorkerExecutionOpe
             }
         }
 
-        logger.info("[fdc-91] Not sure 2");
-
         Closeables.combine(closeables).close();
         scheduledExecutorService.shutdownNow();
-        logger.info("[fdc-91] Shutdown completed");
+        logger.info("Shutdown completed");
     }
 }

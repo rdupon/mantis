@@ -72,8 +72,6 @@ public class TaskExecutorStarter extends AbstractIdleService {
 
     @Override
     protected void shutDown() throws Exception {
-        // TODO: probably here?
-        log.info("[fdc-91] TaskExecutorStarter::shutDown");
         taskExecutor
             .closeAsync()
             .exceptionally(throwable -> null)

@@ -426,8 +426,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         @Override
         public void shutDown() throws Exception {
-            log.info("[fdc-91] ResourceManagerGatewayCxn shutdown.");
-
             gateway
                 .disconnectTaskExecutor(
                     new TaskExecutorDisconnection(taskExecutorRegistration.getTaskExecutorID(),
@@ -507,10 +505,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }, 0, TimeUnit.MILLISECONDS);
         } catch (Exception ex) {
             log.error("Failed to submit task, request: {}", wrappedRequest.getRequest(), ex);
-            log.info("[fdc-91] Send message INFO, failed");
-
             final Status failedStatus = new Status(currentRequest.getJobId(), currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber(),
-                Status.TYPE.INFO, getWorkerStringPrefix(currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber()) + " failed. during initialization...",
+                Status.TYPE.INFO, "stage " + currentRequest.getStage() + " worker index=" + currentRequest.getWorkerIndex() + " number=" + currentRequest.getWorkerNumber() + " failed during initialization",
                 MantisJobState.Failed);
             updateExecutionStatus(failedStatus);
             listeners.enqueue(getTaskFailedEvent(null, ex));
@@ -608,8 +604,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         validateRunsInMainThread();
         if (this.currentTask != null) {
             try {
-                log.info("[fdc-91] TaskExecutor stopCurrentTask: {}", currentTask.getWorkerId());
-
                 if (this.currentTask.state().ordinal() <= Service.State.RUNNING.ordinal()) {
                     listeners.enqueue(getTaskCancellingEvent(currentTask));
                     CompletableFuture<Void> stopTaskFuture =
@@ -626,12 +620,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             getIOExecutor().execute(listeners::dispatch);
                         }, getMainThreadExecutor());
                 } else {
-                    log.info("[fdc-91] TaskExecutor stopCurrentTask but task is not running.");
-//                    final Status failedStatus = new Status(currentRequest.getJobId(), currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber(),
-//                        Status.TYPE.INFO, getWorkerStringPrefix(currentRequest.getStage(), currentRequest.getWorkerIndex(), currentRequest.getWorkerNumber()) + " failed. during initialization...",
-//                        MantisJobState.Failed);
-//                    updateExecutionStatus(failedStatus);
-//                    log.info("[fdc-91] TaskExecutor stopCurrentTask willseeeee..");
                     return CompletableFuture.completedFuture(null);
                 }
             } catch (Exception e) {
@@ -641,7 +629,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 getIOExecutor().execute(listeners::dispatch);
             }
         } else {
-            log.info("[fdc-91] TaskExecutor stopCurrentTask but task is null.");
             return CompletableFuture.completedFuture(null);
         }
     }
@@ -670,10 +657,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     protected void updateExecutionStatus(Status status) {
         taskStatusUpdateHandler.onStatusUpdate(status);
-    }
-
-    private String getWorkerStringPrefix(int stageNum, int index, int number) {
-        return "stage " + stageNum + " worker index=" + index + " number=" + number;
     }
 
     @Override

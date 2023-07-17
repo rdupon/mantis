@@ -155,7 +155,6 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
         }
 
         if (gateway != null && info != null) {
-            TaskExecutorGateway finalGateway = gateway;
             CompletableFuture<Object> ackFuture =
                 gateway
                     .submitTask(
@@ -166,12 +165,9 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
                             event.getScheduleRequestEvent(),
                             event.getTaskExecutorID()))
                     .exceptionally(
-                        throwable -> {
-                            log.info("[fdc-91] FailedToSubmitScheduleRequestEvent: {} -- {}", finalGateway.getAddress(), finalGateway.getHostname());
-                            return new FailedToSubmitScheduleRequestEvent(
-                            event.getScheduleRequestEvent(),
-                            event.getTaskExecutorID(), throwable);
-                        });
+                        throwable -> new FailedToSubmitScheduleRequestEvent(
+                        event.getScheduleRequestEvent(),
+                        event.getTaskExecutorID(), throwable));
 
             pipe(ackFuture, getContext().getDispatcher()).to(self());
         }
