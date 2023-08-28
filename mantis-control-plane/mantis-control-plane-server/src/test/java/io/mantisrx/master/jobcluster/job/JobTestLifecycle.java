@@ -918,6 +918,18 @@ public class JobTestLifecycle {
                 System.out.println("worker -> " + worker.getMetadata());
             }
 
+			// try stale HB on old worker id
+			JobTestHelper.sendHeartBeat(probe, jobActor, jobId, stageNo, workerId2);
+			jobActor.tell(new JobClusterManagerProto.GetJobDetailsRequest("nj", jobId), probe.getRef());
+			GetJobDetailsResponse resp5 = probe.expectMsgClass(GetJobDetailsResponse.class);
+
+			IMantisJobMetadata jobMeta5 = resp5.getJobMetadata().get();
+			Map<Integer, ? extends IMantisStageMetadata> stageMetadata5 = jobMeta5.getStageMetadata();
+			IMantisStageMetadata stage5 = stageMetadata5.get(1);
+			for (JobWorker worker : stage5.getAllWorkers()) {
+				System.out.println("worker -> " + worker.getMetadata());
+			}
+
             // 2 initial schedules and 1 replacement
 			verify(schedulerMock, timeout(1_000).times(3)).scheduleWorker(any());
 
