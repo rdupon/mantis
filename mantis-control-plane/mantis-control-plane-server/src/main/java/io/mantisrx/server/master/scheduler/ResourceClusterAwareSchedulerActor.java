@@ -599,6 +599,7 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
         return "Retry-Schedule-Request-For" + workerId.toString();
     }
 
+    // TODO: this is not good since multiple autoscaling requests will have the same key...
     private String getBatchSchedulingQueueKeyFor(String jobId) {
         return "Retry-Batch-Schedule-Request-For" + jobId;
     }
