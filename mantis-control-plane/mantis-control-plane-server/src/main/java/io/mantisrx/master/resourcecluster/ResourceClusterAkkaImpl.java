@@ -21,6 +21,7 @@ import akka.pattern.Patterns;
 import io.mantisrx.common.Ack;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.AddNewJobArtifactsToCacheRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.ArtifactList;
+import io.mantisrx.master.resourcecluster.ResourceClusterActor.AssignmentList;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.GetActiveJobsRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.GetAssignedTaskExecutorRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.GetAvailableTaskExecutorsRequest;
@@ -34,11 +35,13 @@ import io.mantisrx.master.resourcecluster.ResourceClusterActor.InitializeTaskExe
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.RemoveJobArtifactsToCacheRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.ResourceOverviewRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorAssignmentRequest;
+import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorBatchAssignmentRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorGatewayRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorInfoRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorsList;
 import io.mantisrx.master.resourcecluster.ResourceClusterScalerActor.TriggerClusterRuleRefreshRequest;
 import io.mantisrx.master.resourcecluster.proto.SetResourceClusterScalerStatusRequest;
+import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.server.core.domain.ArtifactID;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.master.resourcecluster.ClusterID;
@@ -56,7 +59,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
 
 class ResourceClusterAkkaImpl extends ResourceClusterGatewayAkkaImpl implements ResourceCluster {
 
@@ -176,11 +182,26 @@ class ResourceClusterAkkaImpl extends ResourceClusterGatewayAkkaImpl implements 
 
     @Override
     public CompletableFuture<TaskExecutorID> getTaskExecutorFor(TaskExecutorAllocationRequest allocationRequest) {
+        // TODO: delete it.
         return
             Patterns
                 .ask(resourceClusterManagerActor, new TaskExecutorAssignmentRequest(allocationRequest, clusterID), askTimeout)
                 .thenApply(TaskExecutorID.class::cast)
                 .toCompletableFuture();
+    }
+
+    @Override
+    public CompletableFuture<List<Pair<TaskExecutorAllocationRequest, TaskExecutorID>>> getTaskExecutorsFor(Set<TaskExecutorAllocationRequest> allocationRequests) {
+        final Map<MachineDefinition, List<TaskExecutorAllocationRequest>> allocationRequestsByMachineDef = allocationRequests
+            .stream()
+            .collect(Collectors.groupingBy(TaskExecutorAllocationRequest::getMachineDefinition));
+
+        return
+            Patterns
+                .ask(resourceClusterManagerActor, new TaskExecutorBatchAssignmentRequest(allocationRequestsByMachineDef, clusterID), askTimeout)
+                .thenApply(AssignmentList.class::cast)
+                .toCompletableFuture()
+                .thenApply(l -> l.getAssignments());
     }
 
     @Override

@@ -25,9 +25,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 import lombok.Value;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Abstraction to deal with all interactions with the resource cluster such as
@@ -106,8 +108,13 @@ public interface ResourceCluster extends ResourceClusterGateway {
      * @param workerId          worker id of the task that's going to run on the node.
      * @return task executor assigned for the particular task.
      */
+    // TODO: delete it!
     CompletableFuture<TaskExecutorID> getTaskExecutorFor(
         TaskExecutorAllocationRequest allocationRequest);
+
+    CompletableFuture<List<Pair<TaskExecutorAllocationRequest, TaskExecutorID>>> getTaskExecutorsFor(
+        Set<TaskExecutorAllocationRequest> allocationRequest);
+
 
     /**
      * Returns the Gateway instance to talk to the task executor. If unable to make connection with

@@ -1307,8 +1307,10 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
          */
         void initialize(boolean isSubmit) throws Exception {
             if (isSubmit) {
+                // TODO: how to differentiate autoscaling requests
                 submitInitialWorkers();
             } else {
+                // TODO: understand if this still stands after change.
                 initializeRunningWorkers();
             }
             mantisJobMetaData.setJobCosts(costsCalculator.calculateCosts(mantisJobMetaData));
@@ -1475,6 +1477,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     mantisJobMetaData.getJobDefinition(),
                     System.currentTimeMillis());
 
+            // TODO: this is the key part!
+            // TODO: not sure about this "beg" part...
             int beg = 0;
             while (true) {
                 if (beg >= workers.size()) {
@@ -1488,7 +1492,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     // refresh Worker Registry state before enqueuing task to Scheduler
                     markStageAssignmentsChanged(true);
                     // queue to scheduler
-                    workerRequests.forEach(this::queueTask);
+                    queueTasks(workerRequests, empty());
                 } catch (Exception e) {
                     LOGGER.error("Error {} storing workers of job {}", e.getMessage(), jobId.getId(), e);
                     throw new RuntimeException("Exception saving worker for Job " + jobId, e);
@@ -1497,18 +1501,23 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             }
         }
 
-        private void queueTask(final IMantisWorkerMetadata workerRequest, final Optional<Long> readyAt) {
-            final ScheduleRequest schedulingRequest = createSchedulingRequest(workerRequest, readyAt);
-            LOGGER.info("Queueing up scheduling request {} ", schedulingRequest);
+        private void queueTasks(final List<IMantisWorkerMetadata> workerRequests, final Optional<Long> readyAt) {
+            // TODO: understand if we ever need to queue 1 worker at the time
+            // TODO: understand if we want to simplify/enhance the batch request
+            final List<ScheduleRequest> scheduleRequests = workerRequests
+                .stream()
+                .map(wR -> createSchedulingRequest(wR, readyAt))
+                .collect(Collectors.toList());
+            LOGGER.info("Queueing up batch schedule request for {} workers", workerRequests.size());
             try {
-                scheduler.scheduleWorker(schedulingRequest);
+                scheduler.scheduleWorkers(new BatchScheduleRequest(scheduleRequests, System.currentTimeMillis()));
             } catch (Exception e) {
                 LOGGER.error("Exception queueing task", e);
             }
         }
 
         private void queueTask(final IMantisWorkerMetadata workerRequest) {
-            queueTask(workerRequest, empty());
+            queueTasks(Collections.singletonList(workerRequest), empty());
         }
 
         private ScheduleRequest createSchedulingRequest(
@@ -2169,7 +2178,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 // publish a refresh before enqueuing new Task to Scheduler
                 markStageAssignmentsChanged(true);
                 // queue the new worker for execution
-                queueTask(newWorker.getMetadata(), delayDuration);
+                queueTasks(Collections.singletonList(newWorker.getMetadata()), delayDuration);
                 LOGGER.info("Worker {} successfully queued for scheduling", newWorker);
                 numWorkerResubmissions.increment();
             } else {

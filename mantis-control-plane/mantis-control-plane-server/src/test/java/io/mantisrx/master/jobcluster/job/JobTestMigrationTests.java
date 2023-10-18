@@ -44,6 +44,7 @@ import io.mantisrx.server.master.domain.IJobClusterDefinition;
 import io.mantisrx.server.master.domain.JobDefinition;
 import io.mantisrx.server.master.domain.JobId;
 import io.mantisrx.server.master.persistence.MantisJobStore;
+import io.mantisrx.server.master.scheduler.BatchScheduleRequest;
 import io.mantisrx.server.master.scheduler.MantisScheduler;
 import io.mantisrx.server.master.scheduler.ScheduleRequest;
 import io.mantisrx.server.master.scheduler.WorkerOnDisabledVM;
@@ -184,6 +185,11 @@ public class JobTestMigrationTests {
             System.out.println("----------------------> schedule Worker Called");
             schedL.countDown();
 
+        }
+
+        @Override
+        public void scheduleWorkers(BatchScheduleRequest scheduleRequest) {
+            // TODO:
         }
 
         @Override

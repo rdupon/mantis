@@ -19,11 +19,14 @@ package io.mantisrx.master.resourcecluster;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.GetActiveJobsRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.GetClusterUsageRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorAssignmentRequest;
+import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorBatchAssignmentRequest;
 import io.mantisrx.master.resourcecluster.proto.GetClusterIdleInstancesRequest;
 import io.mantisrx.master.resourcecluster.proto.GetClusterUsageResponse;
 import io.mantisrx.server.master.resourcecluster.ResourceCluster.ResourceOverview;
+import io.mantisrx.server.master.resourcecluster.TaskExecutorAllocationRequest;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorID;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -84,6 +87,8 @@ interface ExecutorStateManager {
      * @return Optional of matched task executor.
      */
     Optional<Pair<TaskExecutorID, TaskExecutorState>> findBestFit(TaskExecutorAssignmentRequest request);
+
+    Optional<Map<TaskExecutorAllocationRequest, Pair<TaskExecutorID, TaskExecutorState>>> findBestFit(TaskExecutorBatchAssignmentRequest request);
 
     Set<Entry<TaskExecutorID, TaskExecutorState>> getActiveExecutorEntry();
 

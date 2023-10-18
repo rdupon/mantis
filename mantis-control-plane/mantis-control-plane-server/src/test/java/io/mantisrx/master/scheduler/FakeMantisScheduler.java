@@ -25,6 +25,7 @@ import io.mantisrx.master.jobcluster.job.worker.WorkerStatus;
 import io.mantisrx.runtime.MantisJobState;
 import io.mantisrx.server.core.Status;
 import io.mantisrx.server.core.domain.WorkerId;
+import io.mantisrx.server.master.scheduler.BatchScheduleRequest;
 import io.mantisrx.server.master.scheduler.MantisScheduler;
 import io.mantisrx.server.master.scheduler.ScheduleRequest;
 import io.mantisrx.server.master.scheduler.WorkerEvent;
@@ -76,6 +77,11 @@ public class FakeMantisScheduler implements MantisScheduler {
             "fake heartbeat event",
             MantisJobState.Started));
         jobClusterManagerActor.tell(workerHeartbeat, ActorRef.noSender());
+    }
+
+    @Override
+    public void scheduleWorkers(BatchScheduleRequest scheduleRequest) {
+        // TODO:
     }
 
     @Override

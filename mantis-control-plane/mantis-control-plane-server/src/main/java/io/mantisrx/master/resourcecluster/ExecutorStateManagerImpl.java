@@ -20,17 +20,21 @@ import io.mantisrx.common.WorkerConstants;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.GetActiveJobsRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.GetClusterUsageRequest;
 import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorAssignmentRequest;
+import io.mantisrx.master.resourcecluster.ResourceClusterActor.TaskExecutorBatchAssignmentRequest;
 import io.mantisrx.master.resourcecluster.proto.GetClusterIdleInstancesRequest;
 import io.mantisrx.master.resourcecluster.proto.GetClusterUsageResponse;
 import io.mantisrx.master.resourcecluster.proto.GetClusterUsageResponse.GetClusterUsageResponseBuilder;
 import io.mantisrx.master.resourcecluster.proto.GetClusterUsageResponse.UsageByGroupKey;
+import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.master.resourcecluster.ContainerSkuID;
 import io.mantisrx.server.master.resourcecluster.ResourceCluster.ResourceOverview;
+import io.mantisrx.server.master.resourcecluster.TaskExecutorAllocationRequest;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorID;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorRegistration;
 import io.mantisrx.shaded.com.google.common.cache.Cache;
 import io.mantisrx.shaded.com.google.common.cache.CacheBuilder;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +50,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -269,6 +274,81 @@ public class ExecutorStateManagerImpl implements ExecutorStateManager {
             .findFirst()
             .map(TaskExecutorHolder::getId)
             .map(taskExecutorID -> Pair.of(taskExecutorID, this.taskExecutorStateMap.get(taskExecutorID)));
+    }
+
+    @Override
+    public Optional<Map<TaskExecutorAllocationRequest, Pair<TaskExecutorID, TaskExecutorState>>> findBestFit(TaskExecutorBatchAssignmentRequest request) {
+        final List<Pair<MachineDefinition, Integer>> machineDefWithNoResourcesAvailable = new ArrayList<>();
+        final Map<TaskExecutorAllocationRequest, Pair<TaskExecutorID, TaskExecutorState>> bestFit = new HashMap<>();
+
+        for (Map.Entry<MachineDefinition, List<TaskExecutorAllocationRequest>> allocationRequests : request.getPerMachineDefRequests().entrySet()) {
+            final Optional<List<Pair<TaskExecutorID, TaskExecutorState>>> taskExecutors = findBestFitFor(
+                allocationRequests.getKey(), allocationRequests.getValue().size(), request);
+            if (taskExecutors.isPresent() && taskExecutors.get().size() == allocationRequests.getValue().size()) {
+                IntStream.range(0, allocationRequests.getValue().size())
+                    .forEach(index -> bestFit.put(allocationRequests.getValue().get(index), taskExecutors.get().get(index)));
+            } else {
+                machineDefWithNoResourcesAvailable.add(Pair.of(allocationRequests.getKey(), allocationRequests.getValue().size()));
+                log.warn("Not enough available TEs found for machine def {} with core count: {}, request: {}",
+                    allocationRequests.getKey(), allocationRequests.getKey().getCpuCores(), request);
+            }
+        }
+
+        if (machineDefWithNoResourcesAvailable.isEmpty()) {
+            return Optional.of(bestFit);
+        } else {
+            // TODO: inform autoscaler to scale up these machine def...!
+            log.warn("Will try to scale up resources for these machine def: {}, request: {}",
+                machineDefWithNoResourcesAvailable, request);
+            return Optional.empty();
+        }
+
+    }
+
+    // TODO: I don't like the request as part of the function spec.
+    private Optional<List<Pair<TaskExecutorID, TaskExecutorState>>> findBestFitFor(MachineDefinition machineDefinition, Integer numWorkers, TaskExecutorBatchAssignmentRequest request) {
+        // only allow allocation in the lowest CPU cores matching group.
+        SortedMap<Double, NavigableSet<TaskExecutorHolder>> targetMap =
+            this.executorByCores.tailMap(machineDefinition.getCpuCores());
+
+        if (targetMap.isEmpty()) {
+            log.warn("Cannot find any executor for request: {}", request);
+            return Optional.empty();
+        }
+        Double targetCoreCount = targetMap.firstKey();
+        log.debug("Applying assignmentReq: {} to {} cores.", request, targetCoreCount);
+
+        Double requestedCoreCount = machineDefinition.getCpuCores();
+        if (Math.abs(targetCoreCount - requestedCoreCount) > 1E-10) {
+            // this mismatch should not happen in production and indicates TE registration/spec problem.
+            log.warn("Requested core count mismatched. requested: {}, found: {} for {}", requestedCoreCount,
+                targetCoreCount,
+                request);
+        }
+
+        if (this.executorByCores.get(targetCoreCount).isEmpty()) {
+            log.warn("No available TE found for core count: {}, request: {}", targetCoreCount, request);
+            return Optional.empty();
+        }
+
+        return Optional.of(
+            this.executorByCores.get(targetCoreCount)
+                .descendingSet()
+                .stream()
+                .filter(teHolder -> {
+                    if (!this.taskExecutorStateMap.containsKey(teHolder.getId())) {
+                        return false;
+                    }
+
+                    TaskExecutorState st = this.taskExecutorStateMap.get(teHolder.getId());
+                    return st.isAvailable() &&
+                        st.getRegistration() != null &&
+                        st.getRegistration().getMachineDefinition().canFit(machineDefinition);
+                })
+                .limit(numWorkers)
+                .map(TaskExecutorHolder::getId)
+                .map(taskExecutorID -> Pair.of(taskExecutorID, this.taskExecutorStateMap.get(taskExecutorID)))
+                .collect(Collectors.toList()));
     }
 
     @Override

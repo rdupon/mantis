@@ -40,13 +40,18 @@ import io.mantisrx.shaded.com.google.common.base.Throwables;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.flink.util.ExceptionUtils;
 
 @Slf4j
@@ -106,6 +111,12 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
     @Override
     public Receive createReceive() {
         return ReceiveBuilder.create()
+            // batch schedule requests
+            .match(BatchScheduleRequestEvent.class, this::onBatchScheduleRequestEvent)
+            .match(AssignedBatchScheduleRequestEvent.class, this::onAssignedBatchScheduleRequestEvent)
+            .match(FailedToBatchScheduleRequestEvent.class, this::onFailedToBatchScheduleRequestEvent)
+
+            // single schedule request
             .match(ScheduleRequestEvent.class, this::onScheduleRequestEvent)
             .match(InitializeRunningWorkerRequestEvent.class, this::onInitializeRunningWorkerRequest)
             .match(CancelRequestEvent.class, this::onCancelRequestEvent)
@@ -120,6 +131,67 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
             .build();
     }
 
+    /**
+     *
+     *
+     *
+     *
+     *
+     *
+     * BATCH
+     *
+     *
+     *
+     *
+     */
+    private void onBatchScheduleRequestEvent(BatchScheduleRequestEvent event) {
+        if (event.isRetry()) {
+            log.info("Retrying Schedule Request {}, attempt {}", event.getRequest(),
+                event.getAttempt());
+        }
+
+        CompletableFuture<Object> assignedFuture =
+            resourceCluster
+                .getTaskExecutorsFor(event.getTaskExecutorAllocationRequests())
+                .<Object>thenApply(event::onAssignment)
+                .exceptionally(event::onFailure);
+
+        pipe(assignedFuture, getContext().getDispatcher()).to(self());
+    }
+
+    private void onAssignedBatchScheduleRequestEvent(AssignedBatchScheduleRequestEvent event) {
+        // TODO: understand partial failure scenario...
+
+        event
+            .getAssignments()
+            .forEach(assignment -> {
+                final ScheduleRequest scheduleRequest = event.getScheduleRequestEvent().getAllocationRequestScheduleRequestMap().get(assignment.getKey());
+                final ScheduleRequestEvent scheduleRequestEvent = ScheduleRequestEvent.of(scheduleRequest, event.getScheduleRequestEvent().eventTime);
+                final AssignedScheduleRequestEvent assignedScheduleRequestEvent = new AssignedScheduleRequestEvent(scheduleRequestEvent, assignment.getRight());
+
+                self().tell(assignedScheduleRequestEvent, self());
+            });
+    }
+
+    private void onFailedToBatchScheduleRequestEvent(FailedToBatchScheduleRequestEvent event) {
+        // TODO: fill this...
+        log.warn("onFailedToSubmitBatchScheduleRequestEvent called for event: {}", event.getScheduleRequestEvent());
+    }
+
+    /**
+     *
+     *
+     *
+     *
+     *
+     *
+     * SINGLE
+     *
+     *
+     *
+     *
+     *
+     */
     private void onScheduleRequestEvent(ScheduleRequestEvent event) {
         if (event.isRetry()) {
             log.info("Retrying Schedule Request {}, attempt {}", event.getRequest(),
@@ -134,6 +206,7 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
                 .<Object>thenApply(event::onAssignment)
                 .exceptionally(event::onFailure);
 
+        // TODO: not sure if the List<AssignedScheduleRequestEvent> will work honestly...
         pipe(assignedFuture, getContext().getDispatcher()).to(self());
     }
 
@@ -316,6 +389,48 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
     }
 
     @Value
+    static class BatchScheduleRequestEvent {
+        BatchScheduleRequest request;
+        int attempt;
+        @Nullable
+        Throwable previousFailure;
+        Instant eventTime;
+        Map<TaskExecutorAllocationRequest, ScheduleRequest> allocationRequestScheduleRequestMap;
+
+        BatchScheduleRequestEvent(BatchScheduleRequest request, int attempt, Throwable previousFailure, Instant eventTime) {
+            this.request = request;
+            this.attempt = attempt;
+            this.previousFailure = previousFailure;
+            this.eventTime = eventTime;
+            this.allocationRequestScheduleRequestMap = request
+                .getScheduleRequests()
+                .stream()
+                .map(req -> Pair.of(req, TaskExecutorAllocationRequest.of(req.getWorkerId(), req.getMachineDefinition(), req.getJobMetadata(), req.getStageNum())))
+                .collect(Collectors.toMap(Pair::getRight, Pair::getLeft));
+        }
+
+        boolean isRetry() {
+            return attempt > 1;
+        }
+
+        static BatchScheduleRequestEvent of(BatchScheduleRequest request) {
+            return new BatchScheduleRequestEvent(request, 1, null, Clock.systemDefaultZone().instant());
+        }
+
+        AssignedBatchScheduleRequestEvent onAssignment(List<Pair<TaskExecutorAllocationRequest, TaskExecutorID>> assignments) {
+            return new AssignedBatchScheduleRequestEvent(this, assignments);
+        }
+
+        FailedToBatchScheduleRequestEvent onFailure(Throwable throwable) {
+            return new FailedToBatchScheduleRequestEvent(this, this.attempt, throwable);
+        }
+
+        Set<TaskExecutorAllocationRequest> getTaskExecutorAllocationRequests() {
+            return allocationRequestScheduleRequestMap.keySet();
+        }
+    }
+
+    @Value
     static class ScheduleRequestEvent {
 
         ScheduleRequest request;
@@ -332,6 +447,10 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
             return new ScheduleRequestEvent(request, 1, null, Clock.systemDefaultZone().instant());
         }
 
+        static ScheduleRequestEvent of(ScheduleRequest request, Instant eventTime) {
+            return new ScheduleRequestEvent(request, 1, null, eventTime);
+        }
+
         FailedToScheduleRequestEvent onFailure(Throwable throwable) {
             return new FailedToScheduleRequestEvent(this, this.attempt, throwable);
         }
@@ -339,6 +458,14 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
         AssignedScheduleRequestEvent onAssignment(TaskExecutorID taskExecutorID) {
             return new AssignedScheduleRequestEvent(this, taskExecutorID);
         }
+
+//        List<TaskExecutorAllocationRequest> getTaskExecutorAllocationRequests() {
+//            return request
+//                .getScheduleRequests()
+//                .stream()
+//                .map(req -> TaskExecutorAllocationRequest.of(req.getWorkerId(), req.getMachineDefinition(), req.getJobMetadata(), req.getStageNum()))
+//                .collect(Collectors.toList());
+//        }
     }
 
     @Value
@@ -356,6 +483,35 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
 
         private ScheduleRequestEvent onRetry() {
             return new ScheduleRequestEvent(
+                scheduleRequestEvent.getRequest(),
+                attempt + 1,
+                this.throwable,
+                scheduleRequestEvent.getEventTime());
+        }
+    }
+
+    @Value
+    private static class AssignmentScheduleRequest {
+        public ScheduleRequest scheduleRequest;
+        public TaskExecutorID taskExecutorID;
+    }
+
+    @Value
+    private static class AssignedBatchScheduleRequestEvent {
+
+        BatchScheduleRequestEvent scheduleRequestEvent;
+        List<Pair<TaskExecutorAllocationRequest, TaskExecutorID>> assignments;
+    }
+
+    @Value
+    private static class FailedToBatchScheduleRequestEvent {
+
+        BatchScheduleRequestEvent scheduleRequestEvent;
+        int attempt;
+        Throwable throwable;
+
+        private BatchScheduleRequestEvent onRetry() {
+            return new BatchScheduleRequestEvent(
                 scheduleRequestEvent.getRequest(),
                 attempt + 1,
                 this.throwable,
@@ -387,6 +543,7 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
 
     @Value
     static class CancelRequestEvent {
+        // TODO: understand if we need a batch cancel...
 
         WorkerId workerId;
         int attempt;

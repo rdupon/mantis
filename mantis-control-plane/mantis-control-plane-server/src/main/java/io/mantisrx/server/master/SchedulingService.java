@@ -43,6 +43,7 @@ import io.mantisrx.common.metrics.spectator.SpectatorRegistryFactory;
 import io.mantisrx.server.core.BaseService;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.master.config.ConfigurationProvider;
+import io.mantisrx.server.master.scheduler.BatchScheduleRequest;
 import io.mantisrx.server.master.scheduler.JobMessageRouter;
 import io.mantisrx.server.master.scheduler.LaunchTaskRequest;
 import io.mantisrx.server.master.scheduler.MantisScheduler;
@@ -499,6 +500,11 @@ public class SchedulingService extends BaseService implements MantisScheduler {
     @Override
     public void scheduleWorker(final ScheduleRequest scheduleRequest) {
         taskQueue.queueTask(scheduleRequest);
+    }
+
+    @Override
+    public void scheduleWorkers(BatchScheduleRequest scheduleRequest) {
+        scheduleRequest.getScheduleRequests().forEach(taskQueue::queueTask);
     }
 
     @Override
