@@ -1512,7 +1512,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 .collect(Collectors.toList());
             LOGGER.info("Queueing up batch schedule request for {} workers", workerRequests.size());
             try {
-                scheduler.scheduleWorkers(new BatchScheduleRequest(scheduleRequests, System.currentTimeMillis()));
+                scheduler.scheduleWorkers(new BatchScheduleRequest(scheduleRequests));
             } catch (Exception e) {
                 LOGGER.error("Exception queueing task", e);
             }

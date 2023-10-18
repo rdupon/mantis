@@ -619,7 +619,7 @@ public class JobClusterManagerTest {
             any());
 
         // 2 worker schedule requests
-        verify(schedulerMock, timeout(100_000).times(4)).scheduleWorker(any());
+        verify(schedulerMock, timeout(100_000).times(4)).scheduleWorkers(any());
 
         try {
             Mockito.verify(jobStoreSpied).loadAllArchivedJobsAsync();
@@ -795,7 +795,7 @@ public class JobClusterManagerTest {
             });
 
         // Two schedules: one for the initial success, one for a resubmit from corrupted worker ports.
-        verify(schedulerMock, times(2)).scheduleWorker(any());
+        verify(schedulerMock, times(2)).scheduleWorkers(any());
         // One unschedule from corrupted worker ID 1 (before the resubmit).
         verify(schedulerMock, times(1)).unscheduleAndTerminateWorker(eq(workerId), any());
 

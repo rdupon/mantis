@@ -17,13 +17,10 @@
 package io.mantisrx.server.master.scheduler;
 
 import java.util.List;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.Value;
 
-@RequiredArgsConstructor
-@Getter
+@Value
 public class BatchScheduleRequest {
-    private final List<ScheduleRequest> scheduleRequests;
 
-    private final long schedulingTime;
+    List<ScheduleRequest> scheduleRequests;
 }
