@@ -1504,6 +1504,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         private void queueTasks(final List<IMantisWorkerMetadata> workerRequests, final Optional<Long> readyAt) {
             // TODO: understand if we ever need to queue 1 worker at the time
             // TODO: understand if we want to simplify/enhance the batch request
+            LOGGER.info("[fdc-91] hello queieing tasks! Req: {}", workerRequests);
+
             final List<ScheduleRequest> scheduleRequests = workerRequests
                 .stream()
                 .map(wR -> createSchedulingRequest(wR, readyAt))

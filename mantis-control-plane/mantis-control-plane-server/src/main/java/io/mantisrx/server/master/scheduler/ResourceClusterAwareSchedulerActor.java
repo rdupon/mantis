@@ -145,6 +145,8 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
      *
      */
     private void onBatchScheduleRequestEvent(BatchScheduleRequestEvent event) {
+        log.info("[fdc-91] onBatchScheduleRequestEvent! Event: {}", event);
+
         if (event.isRetry()) {
             log.info("Retrying Schedule Request {}, attempt {}", event.getRequest(),
                 event.getAttempt());
@@ -418,10 +420,15 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
         }
 
         AssignedBatchScheduleRequestEvent onAssignment(List<Pair<TaskExecutorAllocationRequest, TaskExecutorID>> assignments) {
+
+            log.info("[fdc-91] onAssignment! Event: {}", assignments);
+
             return new AssignedBatchScheduleRequestEvent(this, assignments);
         }
 
         FailedToBatchScheduleRequestEvent onFailure(Throwable throwable) {
+            log.error("[fdc-91] onFailure FailedToBatchScheduleRequestEvent", throwable);
+
             return new FailedToBatchScheduleRequestEvent(this, this.attempt, throwable);
         }
 

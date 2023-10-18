@@ -108,7 +108,6 @@ public interface ResourceCluster extends ResourceClusterGateway {
      * @param workerId          worker id of the task that's going to run on the node.
      * @return task executor assigned for the particular task.
      */
-    // TODO: delete it!
     CompletableFuture<TaskExecutorID> getTaskExecutorFor(
         TaskExecutorAllocationRequest allocationRequest);
 

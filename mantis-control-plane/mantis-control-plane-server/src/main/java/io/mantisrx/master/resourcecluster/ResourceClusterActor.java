@@ -640,7 +640,8 @@ class ResourceClusterActor extends AbstractActorWithTimers {
                 .map(entry -> Pair.of(entry.getKey(), entry.getValue().getLeft()))
                 .collect(Collectors.toList());
 
-            sender().tell(pairs, self());
+            log.info("[fdc-91] onTaskExecutorBatchAssignmentRequest: {}", pairs);
+            sender().tell(new AssignmentList(pairs), self());
         } else {
             // TODO: add the right tags.
             metrics.incrementCounter(

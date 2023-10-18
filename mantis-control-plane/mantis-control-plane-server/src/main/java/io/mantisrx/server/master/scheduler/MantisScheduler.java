@@ -30,7 +30,6 @@ public interface MantisScheduler {
      *
      * @param scheduleRequest worker to schedule
      */
-    // TODO: delete it!
     void scheduleWorker(final ScheduleRequest scheduleRequest);
 
     void scheduleWorkers(final BatchScheduleRequest scheduleRequest);

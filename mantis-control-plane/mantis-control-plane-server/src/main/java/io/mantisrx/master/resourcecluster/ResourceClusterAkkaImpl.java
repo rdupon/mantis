@@ -192,6 +192,7 @@ class ResourceClusterAkkaImpl extends ResourceClusterGatewayAkkaImpl implements 
 
     @Override
     public CompletableFuture<List<Pair<TaskExecutorAllocationRequest, TaskExecutorID>>> getTaskExecutorsFor(Set<TaskExecutorAllocationRequest> allocationRequests) {
+
         final Map<MachineDefinition, List<TaskExecutorAllocationRequest>> allocationRequestsByMachineDef = allocationRequests
             .stream()
             .collect(Collectors.groupingBy(TaskExecutorAllocationRequest::getMachineDefinition));
