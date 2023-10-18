@@ -23,4 +23,6 @@ import lombok.Value;
 public class BatchScheduleRequest {
 
     List<ScheduleRequest> scheduleRequests;
+
+    // TODO: not sure if we need readyAt;
 }

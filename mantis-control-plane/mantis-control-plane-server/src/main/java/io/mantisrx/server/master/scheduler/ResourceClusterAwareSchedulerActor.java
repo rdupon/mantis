@@ -176,8 +176,21 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
     }
 
     private void onFailedToBatchScheduleRequestEvent(FailedToBatchScheduleRequestEvent event) {
-        // TODO: fill this...
-        log.warn("onFailedToSubmitBatchScheduleRequestEvent called for event: {}", event.getScheduleRequestEvent());
+        schedulingFailures.increment();
+        if (event.getAttempt() >= this.maxScheduleRetries) {
+            log.error("Failed to submit the request {} because of ", event.getScheduleRequestEvent(), event.getThrowable());
+        } else {
+            // TODO: honor the readyAt attribute from schedule request's rate limiter.
+            Duration timeout = Duration.ofMillis(intervalBetweenRetries.toMillis());
+            log.error("Failed to submit the request {}; Retrying in {} because of ",
+                event.getScheduleRequestEvent(), timeout, event.getThrowable());
+
+            String jobId = event.getScheduleRequestEvent().getRequest().getScheduleRequests().get(0).getJobMetadata().getJobId();
+            getTimers().startSingleTimer(
+                getBatchSchedulingQueueKeyFor(jobId),
+                event.onRetry(),
+                timeout);
+        }
     }
 
     /**
@@ -584,5 +597,9 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
 
     private String getSchedulingQueueKeyFor(WorkerId workerId) {
         return "Retry-Schedule-Request-For" + workerId.toString();
+    }
+
+    private String getBatchSchedulingQueueKeyFor(String jobId) {
+        return "Retry-Batch-Schedule-Request-For" + jobId;
     }
 }
