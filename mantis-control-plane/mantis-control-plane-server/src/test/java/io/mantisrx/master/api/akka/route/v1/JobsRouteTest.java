@@ -248,7 +248,7 @@ public class JobsRouteTest extends RouteTestBase {
                .thenAccept(unbound -> system.terminate()); // and shutdown when done
         t.interrupt();
     }
-    
+
     public void testIt() throws InterruptedException {
         cleanupExistingJobs();
         setupJobCluster();
