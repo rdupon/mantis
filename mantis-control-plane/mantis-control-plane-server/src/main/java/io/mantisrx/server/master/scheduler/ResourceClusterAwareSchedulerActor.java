@@ -116,7 +116,7 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
             .match(AssignedBatchScheduleRequestEvent.class, this::onAssignedBatchScheduleRequestEvent)
             .match(FailedToBatchScheduleRequestEvent.class, this::onFailedToBatchScheduleRequestEvent)
             .match(CancelBatchRequestEvent.class, this::onCancelBatchRequestEvent)
-            .match(RetryCancelBatchRequestEvent.class, this::onRetryBatchCancelRequestEvent)
+//            .match(RetryCancelBatchRequestEvent.class, this::onRetryBatchCancelRequestEvent)
 
             // single schedule request
             .match(ScheduleRequestEvent.class, this::onScheduleRequestEvent)

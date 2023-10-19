@@ -508,6 +508,11 @@ public class SchedulingService extends BaseService implements MantisScheduler {
     }
 
     @Override
+    public void terminateJob(String jobId) {
+        // TODO:
+    }
+
+    @Override
     public void unscheduleWorker(final WorkerId workerId, final Optional<String> hostname) {
         taskSchedulingService.removeTask(workerId.getId(), DEFAULT_Q_ATTRIBUTES, hostname.orElse(null));
     }
