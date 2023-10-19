@@ -193,6 +193,11 @@ public class JobTestMigrationTests {
         }
 
         @Override
+        public void terminateJob(String jobId) {
+            // TODO:
+        }
+
+        @Override
         public void unscheduleWorker(WorkerId workerId, Optional<String> hostname) {
             // TODO Auto-generated method stub
             unschedL.countDown();

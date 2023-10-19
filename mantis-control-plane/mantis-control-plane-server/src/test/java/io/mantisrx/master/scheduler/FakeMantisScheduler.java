@@ -85,6 +85,11 @@ public class FakeMantisScheduler implements MantisScheduler {
     }
 
     @Override
+    public void terminateJob(String jobId) {
+        // TODO:
+    }
+
+    @Override
     public void unscheduleWorker(final WorkerId workerId, final Optional<String> hostname) {
         final WorkerEvent workerCompleted = new WorkerResourceStatus(workerId,
             "fake unschedule worker", WorkerResourceStatus.VMResourceState.COMPLETED);
