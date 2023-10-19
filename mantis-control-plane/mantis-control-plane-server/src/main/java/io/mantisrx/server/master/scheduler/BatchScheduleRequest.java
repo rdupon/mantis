@@ -24,5 +24,7 @@ public class BatchScheduleRequest {
 
     List<ScheduleRequest> scheduleRequests;
 
+//    String jobId;
+
     // TODO: not sure if we need readyAt;
 }

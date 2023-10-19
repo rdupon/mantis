@@ -1684,6 +1684,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         @Override
         public void shutdown() {
             // if workers have not already completed
+            terminateJob();
             if (!allWorkerCompleted()) {
                 // kill workers
                 terminateAllWorkersAsync();
@@ -1693,6 +1694,12 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     this.jobMgr.getJobId().getId(),
                     new HashMap<>()));
             jobSchedulingInfoBehaviorSubject.onCompleted();
+        }
+
+        private void terminateJob() {
+            LOGGER.info("Terminating job {}", jobId);
+            // TODO: make this async
+            scheduler.terminateJob(jobId.getId());
         }
 
         private void terminateAllWorkersAsync() {

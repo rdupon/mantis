@@ -115,6 +115,8 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
             .match(BatchScheduleRequestEvent.class, this::onBatchScheduleRequestEvent)
             .match(AssignedBatchScheduleRequestEvent.class, this::onAssignedBatchScheduleRequestEvent)
             .match(FailedToBatchScheduleRequestEvent.class, this::onFailedToBatchScheduleRequestEvent)
+            .match(CancelBatchRequestEvent.class, this::onCancelBatchRequestEvent)
+            .match(RetryCancelBatchRequestEvent.class, this::onRetryBatchCancelRequestEvent)
 
             // single schedule request
             .match(ScheduleRequestEvent.class, this::onScheduleRequestEvent)
@@ -400,6 +402,16 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
         }
     }
 
+    private void onCancelBatchRequestEvent(CancelBatchRequestEvent event) {
+        try {
+            log.info("CancelBatchRequestEvent {}", event);
+            getTimers().cancel(getBatchSchedulingQueueKeyFor(event.getJobId()));
+        } catch (Exception e) {
+            log.warn("[fdc-91] Failed to cancel batch request {}", event.getJobId(), e);
+            // TODO: retry...
+        }
+    }
+
     private void onNoop(Noop event) {
     }
 
@@ -576,6 +588,21 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
         RetryCancelRequestEvent onFailure(Throwable throwable) {
             return new RetryCancelRequestEvent(this, throwable);
         }
+    }
+
+    @Value
+    static class CancelBatchRequestEvent {
+        // TODO: understand if we need a batch cancel...
+
+        String jobId;
+
+        static CancelBatchRequestEvent of(String jobId) {
+            return new CancelBatchRequestEvent(jobId);
+        }
+
+//        RetryCancelRequestEvent onFailure(Throwable throwable) {
+//            return new RetryCancelRequestEvent(this, throwable);
+//        }
     }
 
     @Value

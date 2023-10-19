@@ -34,6 +34,8 @@ public interface MantisScheduler {
 
     void scheduleWorkers(final BatchScheduleRequest scheduleRequest);
 
+    void terminateJob(final String jobId);
+
     /**
      * Mark the worker to be removed from the Scheduling queue. This is expected to be called for all tasks that were added to the Scheduler, whether or
      * not the worker is already running. If the worker is running, the <code>hostname</code> parameter must be set, otherwise,
