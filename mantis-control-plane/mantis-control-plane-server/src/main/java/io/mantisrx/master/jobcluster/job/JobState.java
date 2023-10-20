@@ -181,4 +181,21 @@ public enum JobState {
             return false;
         }
     }
+
+    /**
+     * Returns true if the job is initiated but not running.
+     *
+     * @param state
+     *
+     * @return
+     */
+    public static boolean isInitiatedState(JobState state) {
+        switch (state) {
+            case Accepted:
+
+            return true;
+        default:
+            return false;
+        }
+    }
 }

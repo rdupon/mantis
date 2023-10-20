@@ -1306,7 +1306,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
          * @throws Exception
          */
         void initialize(boolean isSubmit) throws Exception {
-            if (isSubmit) {
+            if (isSubmit || JobState.isInitiatedState(mantisJobMetaData.getState())) {
                 // TODO: how to differentiate autoscaling requests
                 submitInitialWorkers();
             } else {
