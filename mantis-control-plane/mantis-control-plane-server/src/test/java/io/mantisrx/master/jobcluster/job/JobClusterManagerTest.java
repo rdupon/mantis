@@ -632,7 +632,7 @@ public class JobClusterManagerTest {
             any());
 
         // 2 worker schedule requests
-        verify(schedulerMock, timeout(100_000).times(5)).scheduleWorkers(any());
+        verify(schedulerMock, timeout(100_000).times(4)).scheduleWorkers(any());
 
         try {
             Mockito.verify(jobStoreSpied).loadAllArchivedJobsAsync();

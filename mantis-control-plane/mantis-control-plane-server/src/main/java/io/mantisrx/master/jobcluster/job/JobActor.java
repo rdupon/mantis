@@ -1375,7 +1375,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 }
             }
 
-            if (JobState.isInitiatedState(mantisJobMetaData.getState())) {
+            if (JobState.isInitiatedState(mantisJobMetaData.getState()) && !workersToSubmit.isEmpty()) {
                 queueTasks(workersToSubmit, empty());
             }
 
@@ -1501,8 +1501,11 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     LOGGER.info("Stored workers {} for Job {}", workerRequests, jobId);
                     // refresh Worker Registry state before enqueuing task to Scheduler
                     markStageAssignmentsChanged(true);
-                    // queue to scheduler
-                    queueTasks(workerRequests, empty());
+
+                    if (!workerRequests.isEmpty()) {
+                        // queue to scheduler
+                        queueTasks(workerRequests, empty());
+                    }
                 } catch (Exception e) {
                     LOGGER.error("Error {} storing workers of job {}", e.getMessage(), jobId.getId(), e);
                     throw new RuntimeException("Exception saving worker for Job " + jobId, e);
