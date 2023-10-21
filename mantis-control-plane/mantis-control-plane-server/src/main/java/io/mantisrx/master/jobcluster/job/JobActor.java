@@ -1306,7 +1306,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
          * @throws Exception
          */
         void initialize(boolean isSubmit) throws Exception {
-            if (isSubmit || JobState.isInitiatedState(mantisJobMetaData.getState())) {
+            if (isSubmit) {
                 // TODO: how to differentiate autoscaling requests
                 submitInitialWorkers();
             } else {
@@ -1319,6 +1319,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         private void initializeRunningWorkers() {
             // Scan for the list of all corrupted workers to be resubmitted.
             List<JobWorker> workersToResubmit = markCorruptedWorkers();
+            List<IMantisWorkerMetadata> workersToSubmit = new ArrayList<>();
 
             // publish a refresh before enqueuing tasks to the Scheduler, as there is a potential race between
             // WorkerRegistryV2 getting updated and isWorkerValid being called from SchedulingService loop
@@ -1359,7 +1360,12 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
 
                         scheduler.initializeRunningWorker(scheduleRequest, wm.getSlave(), wm.getSlaveID());
                     } else if (wm.getState().equals(WorkerState.Accepted)) {
-                        queueTask(wm);
+
+                        if (JobState.isInitiatedState(mantisJobMetaData.getState())) {
+                            queueTask(wm);
+                        } else {
+                            workersToSubmit.add(wm);
+                        }
                     }
                 }
 
@@ -1367,6 +1373,10 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     stageAssignments.put(stageMeta.getStageNum(), new WorkerAssignments(stageMeta.getStageNum(),
                             stageMeta.getNumWorkers(), workerHosts));
                 }
+            }
+
+            if (JobState.isInitiatedState(mantisJobMetaData.getState())) {
+                queueTasks(workersToSubmit, empty());
             }
 
             // publish another update after queuing tasks to Fenzo (in case some workers were marked Started

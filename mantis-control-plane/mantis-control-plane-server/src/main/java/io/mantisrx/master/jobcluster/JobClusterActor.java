@@ -2634,6 +2634,8 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
 
         Observable<JobProto.JobInitialized> bootstrapJob(MantisJobMetadataImpl jobMeta, IJobClusterMetadata jobClusterMetadata) {
 
+            System.out.println("[fdc-93] bootstrapJob: " + jobMeta.getJobId());
+
             // create jobInfo
             JobInfo jobInfo = createJobInfoAndActorAndWatchActor(jobMeta, jobClusterMetadata);
 
