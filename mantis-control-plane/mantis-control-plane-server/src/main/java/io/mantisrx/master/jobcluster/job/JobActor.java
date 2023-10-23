@@ -1317,6 +1317,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         }
 
         private void initializeRunningWorkers() {
+            LOGGER.info("[fdc-96] initializeRunningWorkers {}", jobId);
+
             // Scan for the list of all corrupted workers to be resubmitted.
             // TODO: all workers in accepted state are marked as corrupted upon restart due to "assignedPorts should have at least 5 ports"
             List<JobWorker> workersToResubmit = markCorruptedWorkers();
@@ -1363,6 +1365,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     } else if (wm.getState().equals(WorkerState.Accepted)) {
 
                         if (JobState.isInitiatedState(mantisJobMetaData.getState())) {
+                            LOGGER.info("[fdc-94::queueTask] P0 - w: {}", wm);
+
                             queueTask(wm);
                         } else {
                             workersToSubmit.add(wm);
@@ -1377,6 +1381,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             }
 
             if (JobState.isInitiatedState(mantisJobMetaData.getState()) && !workersToSubmit.isEmpty()) {
+                LOGGER.info("[fdc-94::queueTasks] P0 - workersToSubmit: {}", workersToSubmit);
+
                 queueTasks(workersToSubmit, empty());
             }
 
@@ -1506,6 +1512,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
 
                     if (!workerRequests.isEmpty()) {
                         // queue to scheduler
+                        LOGGER.info("[fdc-94::queueTasks] P1 - workersToSubmit: {}", workerRequests);
+
                         queueTasks(workerRequests, empty());
                     }
                 } catch (Exception e) {
@@ -1534,6 +1542,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         }
 
         private void queueTask(final IMantisWorkerMetadata workerRequest) {
+            LOGGER.info("[fdc-94::queueTasks] P2 - workersToSubmit: {}", Collections.singletonList(workerRequest));
+
             queueTasks(Collections.singletonList(workerRequest), empty());
         }
 
@@ -2213,6 +2223,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 // publish a refresh before enqueuing new Task to Scheduler
                 markStageAssignmentsChanged(true);
                 // queue the new worker for execution
+                LOGGER.info("[fdc-94::queueTasks] P3 - workersToSubmit: {}", Collections.singletonList(newWorker.getMetadata()));
+
                 queueTasks(Collections.singletonList(newWorker.getMetadata()), delayDuration);
                 LOGGER.info("Worker {} successfully queued for scheduling", newWorker);
                 numWorkerResubmissions.increment();
@@ -2266,6 +2278,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                                     newWorkerIndex);
                             jobStore.storeNewWorker(workerRequest);
                             markStageAssignmentsChanged(true);
+                            LOGGER.info("[fdc-94::queueTask] P1 - w: {}", workerRequest);
+
                             queueTask(workerRequest);
                         } catch (Exception e) {
                             // creating a worker failed but expected no of workers was set successfully,
