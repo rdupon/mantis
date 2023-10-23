@@ -34,6 +34,7 @@ import io.mantisrx.common.metrics.spectator.MetricGroupId;
 import io.mantisrx.master.akka.MantisActorSupervisorStrategy;
 import io.mantisrx.master.events.LifecycleEventPublisher;
 import io.mantisrx.master.events.LifecycleEventsProto;
+import io.mantisrx.master.events.LifecycleEventsProto.WorkerStatusEvent;
 import io.mantisrx.master.jobcluster.WorkerInfoListHolder;
 import io.mantisrx.master.jobcluster.job.worker.*;
 import io.mantisrx.master.jobcluster.proto.JobClusterManagerProto;
@@ -1365,10 +1366,10 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     } else if (wm.getState().equals(WorkerState.Accepted)) {
 
                         if (JobState.isInitiatedState(mantisJobMetaData.getState())) {
-                            LOGGER.info("[fdc-94::queueTask] P0 - w: {}", wm);
-
                             workersToSubmit.add(wm);
                         } else {
+                            LOGGER.info("[fdc-94::queueTask] P0 - w: {}", wm);
+
                             queueTask(wm);
                         }
                     }
@@ -1391,16 +1392,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             markStageAssignmentsChanged(true);
 
             // Resubmit workers with missing ports so they can be reassigned new resources.
-            for (JobWorker jobWorker : workersToResubmit) {
-                LOGGER.warn("discovered workers with missing ports during initialization: {}", jobWorker);
-                try {
-                    LOGGER.info("[fdc-94::resubmitWorker] P0 - jobWorker: {}", jobWorker);
-                    resubmitWorker(jobWorker);
-                } catch (Exception e) {
-                    LOGGER.warn("Exception resubmitting worker {} during initializeRunningWorkers due to {}",
-                            jobWorker, e.getMessage(), e);
-                }
-            }
+            resubmitWorkers(workersToResubmit);
         }
 
         private List<JobWorker> markCorruptedWorkers() {
@@ -1551,6 +1543,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 final IMantisWorkerMetadata workerRequest,
                 final Optional<Long> readyAt) {
             try {
+                // TODO: are we respecting readyAt???
                 final WorkerId workerId = workerRequest.getWorkerId();
 
                 // setup constraints
@@ -1886,19 +1879,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 }
             }
 
-            for (JobWorker worker : workersToResubmit) {
-                try {
-                    LOGGER.info("[fdc-94::resubmitWorker] P1 - jobWorker: {}", worker);
-
-                    resubmitWorker(worker);
-                } catch (Exception e) {
-                    LOGGER.warn(
-                            "Exception {} occurred resubmitting Worker {}",
-                            e.getMessage(),
-                            worker.getMetadata(),
-                            e);
-                }
-            }
+            resubmitWorkers(workersToResubmit);
             migrateDisabledVmWorkers(currentTime);
         }
 
@@ -1911,7 +1892,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 if (!workers.isEmpty()) {
                     LOGGER.info("Job {} Going to migrate {} workers in this iteration", jobId, workers.size());
                 }
-                workers.forEach((w) -> {
+                List<JobWorker> newWorkers = workers.stream().map((w) -> {
                     if (workerToStageMap.containsKey(w)) {
                         int stageNo = workerToStageMap.get(w);
                         Optional<IMantisStageMetadata> stageMetaOp = mantisJobMetaData.getStageMetadata(stageNo);
@@ -1922,13 +1903,14 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                                 IMantisWorkerMetadata wm = jobWorker.getMetadata();
                                 LOGGER.info("Moving worker {} of job {} away from disabled VM", wm.getWorkerId(),
                                         jobId);
-                                eventPublisher.publishStatusEvent(new LifecycleEventsProto.WorkerStatusEvent(INFO,
+                                eventPublisher.publishStatusEvent(new WorkerStatusEvent(INFO,
                                         " Moving out of disabled VM " + wm.getSlave(), wm.getStageNum(),
                                         wm.getWorkerId(), wm.getState()));
                                 LOGGER.info("[fdc-94::resubmitWorker] P3 - jobWorker: {}", jobWorker);
 
-                                resubmitWorker(jobWorker);
+                                // TODO: not sure this change of events has any issues...
                                 lastWorkerMigrationTimestamp = System.currentTimeMillis();
+                                return jobWorker;
                             } catch (Exception e) {
                                 LOGGER.warn("Exception resubmitting worker {} during migration due to {}",
                                         jobWorker, e.getMessage(), e);
@@ -1940,7 +1922,9 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                         LOGGER.warn("worker {} not found in workerToStageMap {} for Job {}", w, workerToStageMap,
                                 jobId);
                     }
-                });
+                    return null;
+                }).filter(Objects::nonNull).collect(Collectors.toList());
+                resubmitWorkers(newWorkers);
             }
         }
 
@@ -2048,7 +2032,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                         recentErrorWorkersCache.put(wm.getWorkerNumber(), true);
                         LOGGER.info("[fdc-94::resubmitWorker] P2 - jobWorker: {}", workerOp.get());
 
-                        resubmitWorker(workerOp.get());
+                        resubmitWorkers(Collections.singletonList(workerOp.get()));
                         return;
                     } else if (WorkerState.isTerminalState(wm.getState())) { // worker has explicitly
                         // completed complete job
@@ -2139,7 +2123,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     JobWorker worker = stageMeta.get().getWorkerByWorkerNumber(workerNum);
                     LOGGER.info("[fdc-94::resubmitWorker] P4 - jobWorker: {}", worker);
 
-                    resubmitWorker(worker);
+                    resubmitWorkers(Collections.singletonList(worker));
                 } else {
                     throw new Exception(String.format("Invalid stage %d in resubmit Worker request %d", stageNum,
                             workerNum));
@@ -2171,68 +2155,122 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             return this.jobSchedulingInfoBehaviorSubject;
         }
 
-        private void resubmitWorker(JobWorker oldWorker) throws Exception {
-            LOGGER.info("Resubmitting worker {}", oldWorker.getMetadata());
+        private void resubmitWorkers(List<JobWorker> workersToResubmit) {
+
+            if (workersToResubmit.isEmpty()) {
+                return;
+            }
+
+            final List<JobWorker> newWorkers = new ArrayList<>();
+            final List<IMantisWorkerMetadata> workersMetadata = workersToResubmit
+                    .stream()
+                    .map(JobWorker::getMetadata)
+                    .collect(Collectors.toList());
+
+            LOGGER.info("Resubmitting workers {}", workersMetadata);
             Map<Integer, Integer> workerToStageMap = mantisJobMetaData.getWorkerNumberToStageMap();
 
-            IMantisWorkerMetadata oldWorkerMetadata = oldWorker.getMetadata();
-            if (recentErrorWorkersCache.size()
-                    < ConfigurationProvider.getConfig().getMaximumResubmissionsPerWorker()) {
-
-                Integer stageNo = workerToStageMap.get(oldWorkerMetadata.getWorkerId().getWorkerNum());
-                if (stageNo == null) {
-                    String errMsg = String.format("Stage %d not found in Job %s while resubmiting worker %s",
-                            stageNo, jobId, oldWorker);
-                    LOGGER.warn(errMsg);
-                    throw new Exception(errMsg);
-                }
-                Optional<IMantisStageMetadata> stageMetaOp = mantisJobMetaData.getStageMetadata(stageNo);
-                if (!stageMetaOp.isPresent()) {
-                    String errMsg = String.format("Stage %d not found in Job %s while resubmiting worker %s",
-                            stageNo, jobId, oldWorker);
-                    LOGGER.warn(errMsg);
-                    throw new Exception(errMsg);
-                }
-
-                MantisStageMetadataImpl stageMeta = (MantisStageMetadataImpl) stageMetaOp.get();
-
-                JobWorker newWorker = new JobWorker.Builder()
-                        .withJobId(jobId)
-                        .withWorkerIndex(oldWorkerMetadata.getWorkerIndex())
-                        .withWorkerNumber(workerNumberGenerator.getNextWorkerNumber(mantisJobMetaData, jobStore))
-                        .withNumberOfPorts(stageMeta.getMachineDefinition().getNumPorts()
-                                + MANTIS_SYSTEM_ALLOCATED_NUM_PORTS)
-                        .withStageNum(oldWorkerMetadata.getStageNum())
-                        .withResubmitCount(oldWorkerMetadata.getTotalResubmitCount() + 1)
-                        .withResubmitOf(oldWorkerMetadata.getWorkerNumber())
-                        .withLifecycleEventsPublisher(eventPublisher)
-                        .build();
-
-                mantisJobMetaData.replaceWorkerMetaData(oldWorkerMetadata.getStageNum(), newWorker, oldWorker,
-                        jobStore);
-                mantisJobMetaData.setJobCosts(costsCalculator.calculateCosts(mantisJobMetaData));
-
-                // kill the task if it is still running
-                scheduler.unscheduleAndTerminateWorker(
-                        oldWorkerMetadata.getWorkerId(),
-                        Optional.ofNullable(oldWorkerMetadata.getSlave()));
-
-                long workerResubmitTime = resubmitRateLimiter.getWorkerResubmitTime(
-                        newWorker.getMetadata().getWorkerId(), stageMeta.getStageNum());
-                Optional<Long> delayDuration = of(workerResubmitTime);
-                // publish a refresh before enqueuing new Task to Scheduler
-                markStageAssignmentsChanged(true);
-                // queue the new worker for execution
-                LOGGER.info("[fdc-94::queueTasks] P3 - workersToSubmit: {}", Collections.singletonList(newWorker.getMetadata()));
-
-                queueTasks(Collections.singletonList(newWorker.getMetadata()), delayDuration);
-                LOGGER.info("Worker {} successfully queued for scheduling", newWorker);
-                numWorkerResubmissions.increment();
-            } else {
+            if (JobState.isInitiatedState(mantisJobMetaData.getState()) && recentErrorWorkersCache.size() + workersMetadata.size()
+                    > ConfigurationProvider.getConfig().getMaximumResubmissionsPerWorker()) {
 
                 // todo numWorkerResubmitLimitReached.increment();
-                LOGGER.error("Resubmit count exceeded");
+                LOGGER.error("Resubmit count exceeded. Skipping the batch resubmit for now.");
                 jobMgr.onTooManyWorkerResubmits();
+                return;
+            }
+
+            for (JobWorker oldWorker : workersToResubmit) {
+                try {
+                    IMantisWorkerMetadata oldWorkerMetadata = oldWorker.getMetadata();
+                    if (JobState.isInitiatedState(mantisJobMetaData.getState()) || recentErrorWorkersCache.size()
+                            < ConfigurationProvider.getConfig().getMaximumResubmissionsPerWorker()) {
+
+                        Integer stageNo = workerToStageMap.get(oldWorkerMetadata.getWorkerId().getWorkerNum());
+                        if (stageNo == null) {
+                            String errMsg = String.format("Stage %d not found in Job %s while resubmiting worker %s",
+                                    stageNo, jobId, oldWorker);
+                            LOGGER.warn(errMsg);
+                            throw new Exception(errMsg);
+                        }
+                        Optional<IMantisStageMetadata> stageMetaOp = mantisJobMetaData.getStageMetadata(stageNo);
+                        if (!stageMetaOp.isPresent()) {
+                            String errMsg = String.format("Stage %d not found in Job %s while resubmiting worker %s",
+                                    stageNo, jobId, oldWorker);
+                            LOGGER.warn(errMsg);
+                            throw new Exception(errMsg);
+                        }
+
+                        MantisStageMetadataImpl stageMeta = (MantisStageMetadataImpl) stageMetaOp.get();
+
+                        JobWorker newWorker = new JobWorker.Builder()
+                                .withJobId(jobId)
+                                .withWorkerIndex(oldWorkerMetadata.getWorkerIndex())
+                                .withWorkerNumber(workerNumberGenerator.getNextWorkerNumber(mantisJobMetaData, jobStore))
+                                .withNumberOfPorts(stageMeta.getMachineDefinition().getNumPorts()
+                                        + MANTIS_SYSTEM_ALLOCATED_NUM_PORTS)
+                                .withStageNum(oldWorkerMetadata.getStageNum())
+                                .withResubmitCount(oldWorkerMetadata.getTotalResubmitCount() + 1)
+                                .withResubmitOf(oldWorkerMetadata.getWorkerNumber())
+                                .withLifecycleEventsPublisher(eventPublisher)
+                                .build();
+
+                        mantisJobMetaData.replaceWorkerMetaData(oldWorkerMetadata.getStageNum(), newWorker, oldWorker,
+                                jobStore);
+                        mantisJobMetaData.setJobCosts(costsCalculator.calculateCosts(mantisJobMetaData));
+
+                        // kill the task if it is still running
+                        scheduler.unscheduleAndTerminateWorker(
+                                oldWorkerMetadata.getWorkerId(),
+                                Optional.ofNullable(oldWorkerMetadata.getSlave()));
+
+                        newWorkers.add(newWorker);
+                        numWorkerResubmissions.increment();
+                    } else {
+
+                        // todo numWorkerResubmitLimitReached.increment();
+                        LOGGER.error("Resubmit count exceeded");
+                        jobMgr.onTooManyWorkerResubmits();
+                    }
+                } catch(Exception e) {
+                    // TODO: not sure about this...
+                    LOGGER.warn("Exception resubmitting worker {} during initializeRunningWorkers due to {}",
+                            oldWorker, e.getMessage(), e);
+                    return;
+                }
+
+                // resubmit all the workers
+                if (JobState.isInitiatedState(mantisJobMetaData.getState()) && !newWorkers.isEmpty()) {
+                    LOGGER.info("[fdc-94::queueTasks] P5 - workersToSubmit: {}", newWorkers);
+                    final List<IMantisWorkerMetadata> newWorkersMetadata = newWorkers
+                            .stream()
+                            .map(JobWorker::getMetadata)
+                            .collect(Collectors.toList());
+                    // TODO: fix this?!
+                    final long readyAt = resubmitRateLimiter.getWorkerResubmitTime(
+                            newWorkers.get(0).getMetadata().getWorkerId(), newWorkers.get(0).getMetadata().getStageNum());
+
+                    // publish a refresh before enqueuing new Tasks to Scheduler
+                    markStageAssignmentsChanged(true);
+                    queueTasks(newWorkersMetadata, of(readyAt));
+                } else {
+                    for (JobWorker newWorker : newWorkers) {
+                        // TODO: verify stageNum is correct.
+                        long workerResubmitTime = resubmitRateLimiter.getWorkerResubmitTime(
+                                newWorker.getMetadata().getWorkerId(), newWorker.getMetadata().getStageNum());
+                        Optional<Long> delayDuration = of(workerResubmitTime);
+                        // publish a refresh before enqueuing new Task to Scheduler
+                        markStageAssignmentsChanged(true);
+                        // queue the new worker for execution
+                        LOGGER.info("[fdc-94::queueTasks] P6 - workersToSubmit: {}", Collections.singletonList(newWorker.getMetadata()));
+
+                        queueTasks(Collections.singletonList(newWorker.getMetadata()), delayDuration);
+                        LOGGER.info("Worker {} successfully queued for scheduling", newWorker);
+                    }
+                }
+
+                // publish another update after queuing tasks to Fenzo (in case some workers were marked Started
+                // due to the Fake heartbeat in above loop)
+                markStageAssignmentsChanged(true);
             }
         }
 

@@ -810,7 +810,7 @@ public class JobTestLifecycle {
 			Thread.sleep(1000);
 
 			// 2 original submissions and 2 resubmits because of HB timeouts
-			verify(schedulerMock, times(3)).scheduleWorkers(any());
+			verify(schedulerMock, times(4)).scheduleWorkers(any());
 			// 2 kills due to resubmits
 			verify(schedulerMock, times(2)).unscheduleAndTerminateWorker(any(), any());
 
