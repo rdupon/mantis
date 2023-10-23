@@ -1367,9 +1367,9 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                         if (JobState.isInitiatedState(mantisJobMetaData.getState())) {
                             LOGGER.info("[fdc-94::queueTask] P0 - w: {}", wm);
 
-                            queueTask(wm);
-                        } else {
                             workersToSubmit.add(wm);
+                        } else {
+                            queueTask(wm);
                         }
                     }
                 }
