@@ -1318,6 +1318,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
 
         private void initializeRunningWorkers() {
             // Scan for the list of all corrupted workers to be resubmitted.
+            // TODO: all workers in accepted state are marked as corrupted upon restart due to "assignedPorts should have at least 5 ports"
             List<JobWorker> workersToResubmit = markCorruptedWorkers();
             List<IMantisWorkerMetadata> workersToSubmit = new ArrayList<>();
 
@@ -1387,6 +1388,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             for (JobWorker jobWorker : workersToResubmit) {
                 LOGGER.warn("discovered workers with missing ports during initialization: {}", jobWorker);
                 try {
+                    LOGGER.info("[fdc-94::resubmitWorker] P0 - jobWorker: {}", jobWorker);
                     resubmitWorker(jobWorker);
                 } catch (Exception e) {
                     LOGGER.warn("Exception resubmitting worker {} during initializeRunningWorkers due to {}",
@@ -1836,6 +1838,9 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                         Instant acceptedAt = Instant.ofEpochMilli(workerMeta.getAcceptedAt());
                         if (Duration.between(acceptedAt, currentTime).getSeconds() > stuckInSubmitToleranceSecs) {
                             // worker stuck in accepted
+                            LOGGER.info("Job {}, Worker {} stuck in accepted state for {}", this.jobMgr.getJobId(),
+                                    workerMeta.getWorkerId(), Duration.between(acceptedAt, currentTime).getSeconds());
+
                             workersToResubmit.add(worker);
                             eventPublisher.publishStatusEvent(new LifecycleEventsProto.WorkerStatusEvent(
                                 WARN,
@@ -1873,6 +1878,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
 
             for (JobWorker worker : workersToResubmit) {
                 try {
+                    LOGGER.info("[fdc-94::resubmitWorker] P1 - jobWorker: {}", worker);
+
                     resubmitWorker(worker);
                 } catch (Exception e) {
                     LOGGER.warn(
@@ -1908,6 +1915,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                                 eventPublisher.publishStatusEvent(new LifecycleEventsProto.WorkerStatusEvent(INFO,
                                         " Moving out of disabled VM " + wm.getSlave(), wm.getStageNum(),
                                         wm.getWorkerId(), wm.getState()));
+                                LOGGER.info("[fdc-94::resubmitWorker] P3 - jobWorker: {}", jobWorker);
+
                                 resubmitWorker(jobWorker);
                                 lastWorkerMigrationTimestamp = System.currentTimeMillis();
                             } catch (Exception e) {
@@ -2027,6 +2036,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                                 "resubmitting lost worker ", wm.getStageNum(),
                                 wm.getWorkerId(), wm.getState()));
                         recentErrorWorkersCache.put(wm.getWorkerNumber(), true);
+                        LOGGER.info("[fdc-94::resubmitWorker] P2 - jobWorker: {}", workerOp.get());
+
                         resubmitWorker(workerOp.get());
                         return;
                     } else if (WorkerState.isTerminalState(wm.getState())) { // worker has explicitly
@@ -2116,6 +2127,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 Optional<IMantisStageMetadata> stageMeta = mantisJobMetaData.getStageMetadata(stageNum);
                 if (stageMeta.isPresent()) {
                     JobWorker worker = stageMeta.get().getWorkerByWorkerNumber(workerNum);
+                    LOGGER.info("[fdc-94::resubmitWorker] P4 - jobWorker: {}", worker);
+
                     resubmitWorker(worker);
                 } else {
                     throw new Exception(String.format("Invalid stage %d in resubmit Worker request %d", stageNum,

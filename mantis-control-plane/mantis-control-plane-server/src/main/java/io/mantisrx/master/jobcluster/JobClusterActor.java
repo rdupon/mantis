@@ -1340,14 +1340,18 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
 
             JobDefinition resolvedJobDefn;
             if (request.isSubmitLatest()) {
+                logger.info("[fdc-93] request.isSubmitLatest");
                 resolvedJobDefn = fromJobClusterDefinition(request.getSubmitter(), jobClusterMetadata.getJobClusterDefinition());
             } else {
+                logger.info("[fdc-93] NO request.isSubmitLatest");
+
                 resolvedJobDefn = getResolvedJobDefinition(request.getSubmitter(), request.getJobDefinition());
             }
             eventPublisher.publishStatusEvent(new LifecycleEventsProto.JobClusterStatusEvent(LifecycleEventsProto.StatusEvent.StatusEventType.INFO,
                 "Job submit request received", jobClusterMetadata.getJobClusterDefinition().getName()));
             resolvedJobDefn = LabelManager.insertSystemLabels(resolvedJobDefn, request.isAutoResubmit());
 
+            logger.info("[fdc-93::resolvedJobDefn] resolvedJobDefn: {}", resolvedJobDefn);
             submitJob(resolvedJobDefn, sender, request.getSubmitter());
 
             numJobSubmissions.increment();
@@ -1470,12 +1474,15 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
     private JobDefinition getResolvedJobDefinition(final String user, final Optional<JobDefinition> givenJobDefnOp) throws Exception {
         JobDefinition resolvedJobDefn;
         if (givenJobDefnOp.isPresent()) {
+            logger.info("[fdc-93::getResolvedJobDefinition] givenJobDefnOp.isPresent: {}", givenJobDefnOp.get());
             if (givenJobDefnOp.get().getSchedulingInfo() != null && givenJobDefnOp.get().requireInheritInstanceCheck()) {
                 logger.warn("Job requires inheriting instance count but has no active non-terminal job.");
             }
             resolvedJobDefn = givenJobDefnOp.get();
         }
         else {
+            logger.info("[fdc-93::getResolvedJobDefinition] NO givenJobDefnOp");
+
             // no job definition specified , this is quick submit which is supposed to inherit from last job submitted
             // for request inheriting from non-terminal jobs, it has been sent to job actor instead.
             Optional<JobDefinition> jobDefnOp = cloneJobDefinitionForQuickSubmitFromArchivedJobs(
