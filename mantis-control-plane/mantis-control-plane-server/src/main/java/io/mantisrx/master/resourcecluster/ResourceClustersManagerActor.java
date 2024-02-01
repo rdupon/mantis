@@ -170,7 +170,6 @@ class ResourceClustersManagerActor extends AbstractActor {
                     clock,
                     rpcService,
                     mantisJobStore,
-                    mantisPersistenceProvider,
                     jobMessageRouter,
                     masterConfiguration.getMaxJobArtifactsToCache(),
                     masterConfiguration.getJobClustersWithArtifactCachingEnabled(),

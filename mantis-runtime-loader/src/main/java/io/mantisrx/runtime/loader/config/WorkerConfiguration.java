@@ -170,6 +170,7 @@ public interface WorkerConfiguration extends CoreConfiguration {
             return ImmutableMap.of();
         }
 
+        // TODO: exclude keys with no values...
         return Splitter.on(",").withKeyValueSeparator(':').split(input);
     }
 }

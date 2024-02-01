@@ -316,7 +316,6 @@ public class ResourceClusterActorTest {
                 Clock.systemDefaultZone(),
                 rpcService,
                 mantisJobStore,
-                storageProvider,
                 jobMessageRouter,
                 0,
                 "",
@@ -400,7 +399,7 @@ public class ResourceClusterActorTest {
 
         // Test get cluster usage
         TestKit probe = new TestKit(actorSystem);
-        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID),
+        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
             probe.getRef());
         GetClusterUsageResponse usageRes = probe.expectMsgClass(GetClusterUsageResponse.class);
         assertEquals(3, usageRes.getUsages().size());
@@ -460,7 +459,7 @@ public class ResourceClusterActorTest {
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
 
         probe = new TestKit(actorSystem);
-        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID),
+        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
             probe.getRef());
         usageRes = probe.expectMsgClass(GetClusterUsageResponse.class);
         usage1 =
@@ -493,7 +492,7 @@ public class ResourceClusterActorTest {
             TASK_EXECUTOR_ID,
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
         probe = new TestKit(actorSystem);
-        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID),
+        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
             probe.getRef());
 
         usageRes = probe.expectMsgClass(GetClusterUsageResponse.class);
