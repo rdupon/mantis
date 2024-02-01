@@ -32,4 +32,20 @@ public class AllocationConstraints {
     MachineDefinition machineDefinition;
 
     Map<String, String> assignmentAttributes;
+
+    public double fitness(AllocationConstraints constraints, Map<String, String> allocationConstraintsAndDefaults) {
+        if (!areAllocationConstraintsSatisfied(constraints, allocationConstraintsAndDefaults)) {
+            return 0.0;
+        }
+        return machineDefinition.fitness(constraints.getMachineDefinition());
+    }
+
+    private boolean areAllocationConstraintsSatisfied(AllocationConstraints constraints, Map<String, String> allocationConstraintsAndDefaults) {
+        return allocationConstraintsAndDefaults.entrySet()
+            .stream()
+            .allMatch(entry -> this.getAssignmentAttributes()
+                .getOrDefault(entry.getKey(), entry.getValue())
+                .equalsIgnoreCase(constraints.getAssignmentAttributes()
+                    .getOrDefault(entry.getKey(), entry.getValue())));
+    }
 }

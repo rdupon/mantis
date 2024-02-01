@@ -135,4 +135,14 @@ public class MachineDefinition implements Serializable {
             this.diskMB >= o.diskMB &&
             this.numPorts >= o.numPorts;
     }
+
+    public double fitness(MachineDefinition o) {
+        if (!canFit(o)) {
+            return 0.0;
+        }
+        double score = 0.0;
+        score += 1 - (this.cpuCores - o.cpuCores) / this.cpuCores;
+        score += 1 - (this.memoryMB - o.memoryMB) / this.memoryMB;
+        return score / 2;
+    }
 }

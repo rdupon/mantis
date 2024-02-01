@@ -128,7 +128,8 @@ public class ResourceClusterActorClusterUsageTest {
             .machineDefinition(MACHINE_DEFINITION_2)
             .taskExecutorAttributes(
                 ImmutableMap.of(
-                    WorkerConstants.WORKER_CONTAINER_DEFINITION_ID, CONTAINER_DEF_ID_3.getResourceID()))
+                    WorkerConstants.WORKER_CONTAINER_DEFINITION_ID, CONTAINER_DEF_ID_3.getResourceID(),
+                    "jdk", "17"))
             .build();
 
     private static ActorSystem actorSystem;
@@ -264,11 +265,11 @@ public class ResourceClusterActorClusterUsageTest {
                 Clock.systemDefaultZone(),
                 rpcService,
                 mantisJobStore,
-                storageProvider,
                 jobMessageRouter,
                 0,
                 "",
-                false, "");
+                false,
+                "jdk:8");
 
         resourceClusterActor = actorSystem.actorOf(props);
         resourceCluster =
@@ -310,7 +311,7 @@ public class ResourceClusterActorClusterUsageTest {
 
         // Test get cluster usage
         TestKit probe = new TestKit(actorSystem);
-        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID),
+        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
             probe.getRef());
         GetClusterUsageResponse usageRes = probe.expectMsgClass(GetClusterUsageResponse.class);
         assertEquals(3, usageRes.getUsages().size());
@@ -332,7 +333,7 @@ public class ResourceClusterActorClusterUsageTest {
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
 
         probe = new TestKit(actorSystem);
-        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID),
+        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
             probe.getRef());
         usageRes = probe.expectMsgClass(GetClusterUsageResponse.class);
 
@@ -391,7 +392,7 @@ public class ResourceClusterActorClusterUsageTest {
 
         // Test get cluster usage
         TestKit probe = new TestKit(actorSystem);
-        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID),
+        resourceClusterActor.tell(new GetClusterUsageRequest(CLUSTER_ID, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
             probe.getRef());
         GetClusterUsageResponse usageRes = probe.expectMsgClass(GetClusterUsageResponse.class);
         assertEquals(3, usageRes.getUsages().size());

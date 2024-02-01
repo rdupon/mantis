@@ -1473,6 +1473,7 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
      * @throws Exception If jobDefinition could not be resolved
      */
     private JobDefinition getResolvedJobDefinition(final String user, final Optional<JobDefinition> givenJobDefnOp) throws Exception {
+        // TODO: probably the mapping can also happen in here????
         JobDefinition resolvedJobDefn;
         if (givenJobDefnOp.isPresent()) {
             if (givenJobDefnOp.get().getSchedulingInfo() != null && givenJobDefnOp.get().requireInheritInstanceCheck()) {
@@ -1510,6 +1511,7 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
     }
 
     private JobDefinition fromJobClusterDefinition(String user, IJobClusterDefinition clusterDefinition) throws InvalidJobException {
+        // TODO: probably the mapping can also happen in here????
         JobClusterConfig clusterConfig = clusterDefinition.getJobClusterConfig();
         return
             new JobDefinition.Builder()
@@ -1536,6 +1538,7 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
             final int workerTimeoutSecs = jobDefinition.getIntSystemParameter(JOB_WORKER_TIMEOUT_SECS, 0);
             logger.info("Creating new job id: {} with job defn {}, with heartbeat {} and workertimeout {}",
                 jId, jobDefinition, heartbeatIntervalSecs, workerTimeoutSecs);
+            // TODO: we could also make the change in here and forget!
             MantisJobMetadataImpl mantisJobMetaData = new MantisJobMetadataImpl.Builder()
                     .withJobId(jId)
                     .withSubmittedAt(Instant.now())
@@ -2213,6 +2216,8 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
                     .withVersion(artifactReq.getVersion())
                     .withUploadedAt(System.currentTimeMillis())
                     .build();
+
+            // TODO: we want to make sure labels are included as well?? since the artifact choice determines the scheduling constraints...
 
             updateJobClusterConfig(newConfig);
             if(!artifactReq.isSkipSubmit()) {

@@ -1607,6 +1607,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             Iterator<Integer> it = schedulingInfo.getStages().keySet().iterator();
             while (it.hasNext()) {
                 int stageNum = it.next();
+                // TODO: in here we need to pass the machine right definition and use size label in case exists...
                 List<IMantisWorkerMetadata> stageWorkers = setupStageWorkers(schedulingInfo, totalStages,
                         stageNum, submittedAt);
                 workerRequests.addAll(stageWorkers);
@@ -1638,6 +1639,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                             withJobId(jobId)
                             .withStageNum(stageNum)
                             .withNumStages(totalStages)
+                            // TODO: here we want to update the way to get the MD
                             .withMachineDefinition(stage.getMachineDefinition())
                             .withNumWorkers(numInstancesAtStage)
                             .withHardConstraints(stage.getHardConstraints())

@@ -305,7 +305,7 @@ public class ExecutorStateManagerTests {
                     .networkMbps((int) MACHINE_DEFINITION_2.getNetworkMbps())
                     .build()
                 ));
-        stateManager = new ExecutorStateManagerImpl(CLUSTER_ID, storageProvider, "");
+        stateManager = new ExecutorStateManagerImpl("");
     }
 
     @Test
@@ -577,13 +577,13 @@ public class ExecutorStateManagerTests {
                 .clusterSpec(buildMantisResourceClusterSpec(getSkuTypeSpecs2()))
                 .id(CLUSTER_ID)
                 .build());
-        stateManager = new ExecutorStateManagerImpl(CLUSTER_ID, storageProvider, "jdk:8,another:blah");
+        stateManager = new ExecutorStateManagerImpl("jdk:8,another:blah");
 
         TaskExecutorRegistration jdk8Te =
             getRegistrationBuilder(TaskExecutorID.of("jdk8ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-basic")).build();
 
         TaskExecutorRegistration jdk17Te =
-            getRegistrationBuilder(TaskExecutorID.of("jdk17ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17")).build();
+            getRegistrationBuilder(TaskExecutorID.of("jdk17ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17", "jdk", "17")).build();
 
         stateManager.trackIfAbsent(TaskExecutorID.of("jdk8ID"), state1);
         state1.onRegistration(jdk8Te);
@@ -617,13 +617,13 @@ public class ExecutorStateManagerTests {
                 .clusterSpec(buildMantisResourceClusterSpec(getSkuTypeSpecs2()))
                 .id(CLUSTER_ID)
                 .build());
-        stateManager = new ExecutorStateManagerImpl(CLUSTER_ID, storageProvider, "jdk:8,another:blah");
+        stateManager = new ExecutorStateManagerImpl("jdk:8,another:blah");
 
         TaskExecutorRegistration jdk8Te =
             getRegistrationBuilder(TaskExecutorID.of("jdk8ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-basic")).build();
 
         TaskExecutorRegistration jdk17Te =
-            getRegistrationBuilder(TaskExecutorID.of("jdk17ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17")).build();
+            getRegistrationBuilder(TaskExecutorID.of("jdk17ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17", "jdk", "17")).build();
 
         stateManager.trackIfAbsent(TaskExecutorID.of("jdk17ID"), state2);
         state2.onRegistration(jdk17Te);
@@ -657,13 +657,13 @@ public class ExecutorStateManagerTests {
                 .clusterSpec(buildMantisResourceClusterSpec(getSkuTypeSpecs2()))
                 .id(CLUSTER_ID)
                 .build());
-        stateManager = new ExecutorStateManagerImpl(CLUSTER_ID, storageProvider, "jdk:17,sbn:2");
+        stateManager = new ExecutorStateManagerImpl("jdk:17,sbn:2");
 
         TaskExecutorRegistration jdk8Te =
             getRegistrationBuilder(TaskExecutorID.of("jdk8ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-basic")).build();
 
         TaskExecutorRegistration jdk17Te =
-            getRegistrationBuilder(TaskExecutorID.of("jdk17ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17")).build();
+            getRegistrationBuilder(TaskExecutorID.of("jdk17ID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17", "jdk", "17")).build();
 
         stateManager.trackIfAbsent(TaskExecutorID.of("jdk8ID"), state1);
         state1.onRegistration(jdk8Te);
@@ -684,7 +684,7 @@ public class ExecutorStateManagerTests {
         assertFalse(bestFit.isPresent());
 
         TaskExecutorRegistration jdk17Sbn3Te =
-            getRegistrationBuilder(TaskExecutorID.of("jdk17SbnID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17-sbn3")).build();
+            getRegistrationBuilder(TaskExecutorID.of("jdk17SbnID"), MACHINE_DEFINITION_1, ImmutableMap.of(WORKER_CONTAINER_DEFINITION_ID, "small-jdk17-sbn3", "jdk", "17", "sbn", "3")).build();
 
         stateManager.trackIfAbsent(TaskExecutorID.of("jdk17SbnID"), state3);
         state3.onRegistration(jdk17Sbn3Te);
