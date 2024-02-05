@@ -48,6 +48,8 @@ import io.mantisrx.runtime.descriptor.StageScalingPolicy;
 import io.mantisrx.runtime.descriptor.StageSchedulingInfo;
 import io.mantisrx.server.core.*;
 import io.mantisrx.server.core.Status;
+import io.mantisrx.server.core.domain.ArtifactID;
+import io.mantisrx.server.core.domain.JobArtifact;
 import io.mantisrx.server.core.domain.JobMetadata;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.core.scheduler.SchedulingConstraints;
@@ -1571,25 +1573,26 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     }
                 }
 
+                JobMetadata jobMetadata = new JobMetadata(
+                    mantisJobMetaData.getJobId().getId(),
+                    mantisJobMetaData.getJobJarUrl(),
+                    mantisJobMetaData.getTotalStages(),
+                    mantisJobMetaData.getUser(),
+                    mantisJobMetaData.getSchedulingInfo(),
+                    mantisJobMetaData.getParameters(),
+                    getSubscriptionTimeoutSecs(mantisJobMetaData),
+                    getHeartbeatIntervalSecs(mantisJobMetaData),
+                    mantisJobMetaData.getMinRuntimeSecs()
+                );
                 ScheduleRequest sr = new ScheduleRequest(
                         workerId,
                         workerRequest.getStageNum(),
                         workerRequest.getNumberOfPorts(),
-                        new JobMetadata(
-                                mantisJobMetaData.getJobId().getId(),
-                                mantisJobMetaData.getJobJarUrl(),
-                                mantisJobMetaData.getTotalStages(),
-                                mantisJobMetaData.getUser(),
-                                mantisJobMetaData.getSchedulingInfo(),
-                                mantisJobMetaData.getParameters(),
-                                getSubscriptionTimeoutSecs(mantisJobMetaData),
-                                getHeartbeatIntervalSecs(mantisJobMetaData),
-                                mantisJobMetaData.getMinRuntimeSecs()
-                        ),
+                        jobMetadata,
                         mantisJobMetaData.getSla().orElse(new JobSla.Builder().build()).getDurationType(),
-                        // TODO: replace with stageMetadata.getSchedulingConstraints()
-                        // TODO: merge scheduling assignment attributes
-                        SchedulingConstraints.of(stageMetadata.getMachineDefinition(), mantisJobMetaData.getJobDefinition().getAssignmentAttributes()),
+                        SchedulingConstraints.of(
+                            stageMetadata.getMachineDefinition(),
+                            getJobAssignmentAttributes(jobMetadata.getJobArtifact())),
                         hardConstraints,
                         softConstraints,
                         readyAt.orElse(0L),
@@ -1599,6 +1602,30 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                 LOGGER.error("Exception creating scheduleRequest ", e);
                 throw e;
             }
+        }
+
+        /**
+         * Retrieves attributes assignment used by the scheduler for the job artifact. It does it by first fetching
+         * the associated JobArtifact tags using the artifact ID from the job, and then merging them with the assignment
+         * attributes from the job definition itself. The keys from the job definition take precedence over the
+         * keys from the artifact's tags.
+         *
+         * @param artifactID the artifact used by the job whose attributes are to be fetched
+         * @return A merged map of assignment attributes. The precedence of keys follows: job definition > artifact's tags.
+         * @throws IOException if an I/O error occurs during the fetch operation from jobStore
+         */
+        private Map<String, String> getJobAssignmentAttributes(ArtifactID artifactID) throws IOException {
+            // TODO: test this!!!
+            final JobArtifact artifact;
+            try {
+                artifact = jobStore.getJobArtifact(artifactID);
+            } catch (IOException e) {
+                LOGGER.error("Couldn't find job artifact by id: {}", artifactID);
+                throw e;
+            }
+            Map<String, String> mergedMap = new HashMap<>(artifact.getTags());
+            mergedMap.putAll(mantisJobMetaData.getJobDefinition().getAssignmentAttributes());
+            return mergedMap;
         }
 
         private List<IMantisWorkerMetadata> getInitialWorkers(JobDefinition jobDetails, long submittedAt)

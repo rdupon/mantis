@@ -27,7 +27,6 @@ import io.mantisrx.runtime.JobConstraints;
 import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.runtime.descriptor.StageScalingPolicy;
 import io.mantisrx.server.core.JobCompletedReason;
-import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.server.master.WorkerRequest;
 import io.mantisrx.server.master.domain.JobId;
 import io.mantisrx.server.master.persistence.MantisJobStore;
@@ -42,7 +41,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -375,11 +373,6 @@ public class MantisStageMetadataImpl implements IMantisStageMetadata {
     @Override
     public MachineDefinition getMachineDefinition() {
         return machineDefinition;
-    }
-
-    public SchedulingConstraints getSchedulingConstraints() {
-        //mantisJobMetaData.getJobDefinition().getAssignmentAttributes()
-        return SchedulingConstraints.of(machineDefinition, new HashMap<>());
     }
 
     @Deprecated
