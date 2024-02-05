@@ -16,7 +16,7 @@
 
 package io.mantisrx.master.resourcecluster.proto;
 
-import io.mantisrx.server.master.resourcecluster.SkuSizeID;
+import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonCreator;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
@@ -27,36 +27,19 @@ import lombok.Value;
 @Value
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class SkuSizeSpec {
-    @EqualsAndHashCode.Include
-    SkuSizeID skuSizeID; // ie. small-v0, small-v1
+    String name; // ie. small
 
-    String skuSizeName; // ie. small
-
-    int cpuCoreCount;
-
-    int memorySizeInMB;
-
-    int networkMbps;
-
-    int diskSizeInMB;
+    MachineDefinition machineDefinition;
 
     @JsonCreator
     public SkuSizeSpec(
-        @JsonProperty("skuSizeID") final SkuSizeID skuSizeID,
-        @JsonProperty("skuSizeName") final String skuSizeName,
-        @JsonProperty("cpuCoreCount") final int cpuCoreCount,
-        @JsonProperty("memorySizeInMB") final int memorySizeInMB,
-        @JsonProperty("networkMbps") final int networkMbps,
-        @JsonProperty("diskSizeInMB") final int diskSizeInMB) {
-        this.skuSizeID = skuSizeID;
-        this.skuSizeName = skuSizeName;
-        this.cpuCoreCount = cpuCoreCount;
-        this.memorySizeInMB = memorySizeInMB;
-        this.networkMbps = networkMbps;
-        this.diskSizeInMB = diskSizeInMB;
+        @JsonProperty("name") final String name,
+        @JsonProperty("machineDefinition") final MachineDefinition machineDefinition) {
+        this.name = name;
+        this.machineDefinition = machineDefinition;
     }
 
     public boolean isSizeValid() {
-        return cpuCoreCount >= 1 && diskSizeInMB >= 1 && memorySizeInMB >= 1 && networkMbps >= 1;
+        return machineDefinition.getCpuCores() >= 1 && machineDefinition.getDiskMB() >= 1 && machineDefinition.getMemoryMB() >= 1 && machineDefinition.getNetworkMbps() >= 1;
     }
 }

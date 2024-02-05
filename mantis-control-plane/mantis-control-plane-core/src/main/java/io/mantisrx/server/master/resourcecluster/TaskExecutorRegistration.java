@@ -17,13 +17,12 @@ package io.mantisrx.server.master.resourcecluster;
 
 import io.mantisrx.common.WorkerConstants;
 import io.mantisrx.common.WorkerPorts;
-import io.mantisrx.runtime.AllocationConstraints;
 import io.mantisrx.runtime.MachineDefinition;
+import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonCreator;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonIgnore;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonProperty;
 import io.mantisrx.shaded.com.google.common.collect.ImmutableMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -147,13 +146,13 @@ public class TaskExecutorRegistration {
     }
 
     @JsonIgnore
-    public AllocationConstraints getAllocationConstraints(Map<String, String> allocationAttributesWithDefault) {
+    public SchedulingConstraints getAllocationConstraints(Map<String, String> allocationAttributesWithDefault) {
         Map<String, String> attributes = allocationAttributesWithDefault
             .entrySet()
             .stream()
             .collect(Collectors.toMap(
                 Entry::getKey,
                 entry -> getAttributeByKey(entry.getKey()).orElse(entry.getValue())));
-        return AllocationConstraints.of(machineDefinition, attributes);
+        return SchedulingConstraints.of(machineDefinition, attributes);
     }
 }

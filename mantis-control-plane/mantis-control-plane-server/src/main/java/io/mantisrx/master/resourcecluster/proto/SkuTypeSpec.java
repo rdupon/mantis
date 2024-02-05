@@ -17,7 +17,6 @@
 package io.mantisrx.master.resourcecluster.proto;
 
 import io.mantisrx.server.master.resourcecluster.ContainerSkuID;
-import io.mantisrx.server.master.resourcecluster.SkuSizeID;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonCreator;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonProperty;
@@ -49,7 +48,7 @@ public class SkuTypeSpec {
     Map<String, String> skuMetadataFields; // ie. jdk17, sbn3
 
     @Nullable
-    SkuSizeID sizeId; // ie. small-v0, large-v1
+    SkuSizeSpec size;
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonCreator
@@ -62,7 +61,7 @@ public class SkuTypeSpec {
         @JsonProperty("networkMbps") final int networkMbps,
         @JsonProperty("diskSizeInBytes") final int diskSizeInMB,
         @JsonProperty("skuMetadataFields") final Map<String, String> skuMetadataFields,
-        @JsonProperty("sizeId") final SkuSizeID sizeId) {
+        @JsonProperty("size") final SkuSizeSpec size) {
         this.skuId = skuId;
         this.imageId = imageId;
         this.capacity = capacity;
@@ -71,7 +70,7 @@ public class SkuTypeSpec {
         this.networkMbps = networkMbps;
         this.diskSizeInMB = diskSizeInMB;
         this.skuMetadataFields = skuMetadataFields;
-        this.sizeId = sizeId;
+        this.size = size;
     }
 
     @Builder
@@ -97,5 +96,9 @@ public class SkuTypeSpec {
             this.maxSize = maxSize;
             this.desireSize = desireSize;
         }
+    }
+
+    public boolean isSizeValid() {
+        return size == null ? cpuCoreCount >= 1 && diskSizeInMB >= 1 && memorySizeInMB >= 1 && networkMbps >= 1 : size.isSizeValid();
     }
 }

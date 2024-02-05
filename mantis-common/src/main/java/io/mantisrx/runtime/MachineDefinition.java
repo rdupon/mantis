@@ -136,6 +136,16 @@ public class MachineDefinition implements Serializable {
             this.numPorts >= o.numPorts;
     }
 
+    /**
+     * Computes the fitness score of the provided MachineDefinition in relation to the current instance.
+     *
+     * @param o - The MachineDefinition object that needs to be compared with the current instance.
+     *
+     * @return - A fitness score ranging between 0.0 to 1.0, which represents the relative fitness of the given
+     * MachineDefinition compared to the current instance. If the given MachineDefinition cannot fit into the
+     * current MachineDefinition, the function returns 0.0. Otherwise, the function returns an average score, which is the
+     * proportional difference of CPU cores and the memory in relation to the current instance's MachineDefinition.
+     */
     public double fitness(MachineDefinition o) {
         if (!canFit(o)) {
             return 0.0;

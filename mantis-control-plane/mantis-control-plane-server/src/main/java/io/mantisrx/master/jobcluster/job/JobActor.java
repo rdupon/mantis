@@ -50,6 +50,7 @@ import io.mantisrx.server.core.*;
 import io.mantisrx.server.core.Status;
 import io.mantisrx.server.core.domain.JobMetadata;
 import io.mantisrx.server.core.domain.WorkerId;
+import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.server.master.ConstraintsEvaluators;
 import io.mantisrx.server.master.InvalidJobRequest;
 import io.mantisrx.server.master.agentdeploy.MigrationStrategyFactory;
@@ -1586,7 +1587,9 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                                 mantisJobMetaData.getMinRuntimeSecs()
                         ),
                         mantisJobMetaData.getSla().orElse(new JobSla.Builder().build()).getDurationType(),
-                        AllocationConstraints.of(stageMetadata.getMachineDefinition(), mantisJobMetaData.getJobDefinition().getAssignmentAttributes()),
+                        // TODO: replace with stageMetadata.getSchedulingConstraints()
+                        // TODO: merge scheduling assignment attributes
+                        SchedulingConstraints.of(stageMetadata.getMachineDefinition(), mantisJobMetaData.getJobDefinition().getAssignmentAttributes()),
                         hardConstraints,
                         softConstraints,
                         readyAt.orElse(0L),

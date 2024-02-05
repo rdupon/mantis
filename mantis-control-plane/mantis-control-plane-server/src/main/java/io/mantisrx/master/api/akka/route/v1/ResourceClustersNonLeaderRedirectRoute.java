@@ -78,6 +78,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>
  * /api/v1/resourceClusters/skuSize                                   (POST)
  * /api/v1/resourceClusters/skuSizes                                  (GET)
+ * /api/v1/resourceClusters/skuSizes/{}                               (GET)
  * <p>
  * /api/v1/resourceClusters/{}/getResourceOverview                    (GET)
  * /api/v1/resourceClusters/{}/getRegisteredTaskExecutors             (GET)

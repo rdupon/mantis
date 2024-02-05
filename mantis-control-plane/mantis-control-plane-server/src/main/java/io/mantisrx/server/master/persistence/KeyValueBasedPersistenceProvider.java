@@ -27,7 +27,6 @@ import io.mantisrx.master.jobcluster.job.worker.IMantisWorkerMetadata;
 import io.mantisrx.master.jobcluster.job.worker.JobWorker;
 import io.mantisrx.master.resourcecluster.DisableTaskExecutorsRequest;
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleSpec;
-import io.mantisrx.master.resourcecluster.proto.SkuSizeSpec;
 import io.mantisrx.master.resourcecluster.writable.RegisteredResourceClustersWritable;
 import io.mantisrx.master.resourcecluster.writable.ResourceClusterScaleRulesWritable;
 import io.mantisrx.master.resourcecluster.writable.ResourceClusterSpecWritable;
@@ -903,29 +902,6 @@ public class KeyValueBasedPersistenceProvider implements IMantisPersistenceProvi
                     .build();
         }
         return registerResourceClusterScaleRule(newSpec);
-    }
-
-    @Override
-    public List<SkuSizeSpec> registerResourceClusterSkuSize(SkuSizeSpec skuSizeSpec) throws IOException {
-        kvStore.upsert(
-            SKU_SIZES_NS, skuSizeSpec.getSkuSizeID().getResourceID(), "",
-            mapper.writeValueAsString(skuSizeSpec));
-        return getResourceClusterSkuSizes();
-    }
-
-    @Override
-    public List<SkuSizeSpec> getResourceClusterSkuSizes() throws IOException {
-        return kvStore.getAllRows(SKU_SIZES_NS)
-            .values().stream()
-            .map(
-                value -> {
-                    try {
-                        return mapper.convertValue(value, SkuSizeSpec.class);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-            .collect(Collectors.toList());
     }
 
     private static final String RESOURCE_CLUSTER_REGISTRATION = "ResourceClusterRegistration";

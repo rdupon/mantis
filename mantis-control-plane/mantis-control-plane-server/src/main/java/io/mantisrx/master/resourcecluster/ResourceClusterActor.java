@@ -28,10 +28,10 @@ import io.mantisrx.common.Ack;
 import io.mantisrx.common.WorkerConstants;
 import io.mantisrx.master.resourcecluster.proto.GetClusterIdleInstancesRequest;
 import io.mantisrx.master.resourcecluster.proto.GetClusterIdleInstancesResponse;
-import io.mantisrx.runtime.AllocationConstraints;
 import io.mantisrx.server.core.CacheJobArtifactsRequest;
 import io.mantisrx.server.core.domain.ArtifactID;
 import io.mantisrx.server.core.domain.WorkerId;
+import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.server.master.persistence.MantisJobStore;
 import io.mantisrx.server.master.resourcecluster.ClusterID;
 import io.mantisrx.server.master.resourcecluster.PagedActiveJobOverview;
@@ -116,10 +116,10 @@ class ResourceClusterActor extends AbstractActorWithTimers {
 
     private final boolean isJobArtifactCachingEnabled;
 
-    private final String allocationConstraintsAndDefaults;
+    private final String assignmentAttributesAndDefaults;
 
-    static Props props(final ClusterID clusterID, final Duration heartbeatTimeout, Duration assignmentTimeout, Duration disabledTaskExecutorsCheckInterval, Clock clock, RpcService rpcService, MantisJobStore mantisJobStore, JobMessageRouter jobMessageRouter, int maxJobArtifactsToCache, String jobClustersWithArtifactCachingEnabled, boolean isJobArtifactCachingEnabled, String allocationConstraintsAndDefaults) {
-        return Props.create(ResourceClusterActor.class, clusterID, heartbeatTimeout, assignmentTimeout, disabledTaskExecutorsCheckInterval, clock, rpcService, mantisJobStore, jobMessageRouter, maxJobArtifactsToCache, jobClustersWithArtifactCachingEnabled, isJobArtifactCachingEnabled, allocationConstraintsAndDefaults)
+    static Props props(final ClusterID clusterID, final Duration heartbeatTimeout, Duration assignmentTimeout, Duration disabledTaskExecutorsCheckInterval, Clock clock, RpcService rpcService, MantisJobStore mantisJobStore, JobMessageRouter jobMessageRouter, int maxJobArtifactsToCache, String jobClustersWithArtifactCachingEnabled, boolean isJobArtifactCachingEnabled, String assignmentAttributesAndDefaults) {
+        return Props.create(ResourceClusterActor.class, clusterID, heartbeatTimeout, assignmentTimeout, disabledTaskExecutorsCheckInterval, clock, rpcService, mantisJobStore, jobMessageRouter, maxJobArtifactsToCache, jobClustersWithArtifactCachingEnabled, isJobArtifactCachingEnabled, assignmentAttributesAndDefaults)
                 .withMailbox("akka.actor.metered-mailbox");
     }
 
@@ -135,13 +135,13 @@ class ResourceClusterActor extends AbstractActorWithTimers {
         int maxJobArtifactsToCache,
         String jobClustersWithArtifactCachingEnabled,
         boolean isJobArtifactCachingEnabled,
-        String allocationConstraintsAndDefaults) {
+        String assignmentAttributesAndDefaults) {
         this.clusterID = clusterID;
         this.heartbeatTimeout = heartbeatTimeout;
         this.assignmentTimeout = assignmentTimeout;
         this.disabledTaskExecutorsCheckInterval = disabledTaskExecutorsCheckInterval;
         this.isJobArtifactCachingEnabled = isJobArtifactCachingEnabled;
-        this.allocationConstraintsAndDefaults = allocationConstraintsAndDefaults;
+        this.assignmentAttributesAndDefaults = assignmentAttributesAndDefaults;
 
         this.clock = clock;
         this.rpcService = rpcService;
@@ -159,7 +159,7 @@ class ResourceClusterActor extends AbstractActorWithTimers {
 
     private ExecutorStateManager createExecutorStateManager() {
         try {
-            return new ExecutorStateManagerImpl(allocationConstraintsAndDefaults);
+            return new ExecutorStateManagerImpl(assignmentAttributesAndDefaults);
         } catch (Exception e) {
             log.error("No resource cluster spec found for {}", clusterID);
             throw new RuntimeException(e);
@@ -874,13 +874,13 @@ class ResourceClusterActor extends AbstractActorWithTimers {
         Set<TaskExecutorAllocationRequest> allocationRequests;
         ClusterID clusterID;
 
-        public Map<AllocationConstraints, List<TaskExecutorAllocationRequest>> getGroupedByConstraints() {
+        public Map<SchedulingConstraints, List<TaskExecutorAllocationRequest>> getGroupedByConstraints() {
             return allocationRequests
                 .stream()
                 .collect(Collectors.groupingBy(TaskExecutorAllocationRequest::getConstraints));
         }
 
-        public Map<AllocationConstraints, Integer> getGroupedByConstraintsCount() {
+        public Map<SchedulingConstraints, Integer> getGroupedByConstraintsCount() {
             return allocationRequests
                 .stream()
                 .collect(Collectors.groupingBy(TaskExecutorAllocationRequest::getConstraints))

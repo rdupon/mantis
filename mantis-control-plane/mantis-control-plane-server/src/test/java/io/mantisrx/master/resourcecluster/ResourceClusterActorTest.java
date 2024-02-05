@@ -47,10 +47,10 @@ import io.mantisrx.master.resourcecluster.proto.MantisResourceClusterSpec;
 import io.mantisrx.master.resourcecluster.proto.SkuSizeSpec;
 import io.mantisrx.master.resourcecluster.proto.SkuTypeSpec;
 import io.mantisrx.master.resourcecluster.writable.ResourceClusterSpecWritable;
-import io.mantisrx.runtime.AllocationConstraints;
 import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.server.core.TestingRpcService;
 import io.mantisrx.server.core.domain.WorkerId;
+import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.server.master.persistence.IMantisPersistenceProvider;
 import io.mantisrx.server.master.persistence.MantisJobStore;
 import io.mantisrx.server.master.resourcecluster.ClusterID;
@@ -60,7 +60,6 @@ import io.mantisrx.server.master.resourcecluster.ResourceCluster;
 import io.mantisrx.server.master.resourcecluster.ResourceCluster.ResourceOverview;
 import io.mantisrx.server.master.resourcecluster.ResourceCluster.TaskExecutorNotFoundException;
 import io.mantisrx.server.master.resourcecluster.ResourceCluster.TaskExecutorStatus;
-import io.mantisrx.server.master.resourcecluster.SkuSizeID;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorAllocationRequest;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorDisconnection;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorHeartbeat;
@@ -357,7 +356,7 @@ public class ResourceClusterActorTest {
                         TASK_EXECUTOR_ID,
                         CLUSTER_ID,
                         TaskExecutorReport.available())).get());
-        final Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
+        final Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
         assertEquals(
             TASK_EXECUTOR_ID,
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
@@ -453,7 +452,7 @@ public class ResourceClusterActorTest {
         assertEquals(ImmutableList.of(TASK_EXECUTOR_ID_2), idleInstancesResponse.getInstanceIds());
         assertEquals(CONTAINER_DEF_ID_2, idleInstancesResponse.getSkuId());
 
-        Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION_2, ImmutableMap.of()), null, 0));
+        Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION_2, ImmutableMap.of()), null, 0));
         assertEquals(
             TASK_EXECUTOR_ID_2,
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
@@ -487,7 +486,7 @@ public class ResourceClusterActorTest {
         assertEquals(ImmutableList.of(TASK_EXECUTOR_ID), idleInstancesResponse.getInstanceIds());
         assertEquals(CONTAINER_DEF_ID_1, idleInstancesResponse.getSkuId());
 
-        requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
+        requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
         assertEquals(
             TASK_EXECUTOR_ID,
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
@@ -542,14 +541,14 @@ public class ResourceClusterActorTest {
                         TASK_EXECUTOR_ID,
                         CLUSTER_ID,
                         TaskExecutorReport.available())).get());
-        Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
+        Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
         assertEquals(
             TASK_EXECUTOR_ID,
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
         assertEquals(ImmutableList.of(), resourceCluster.getAvailableTaskExecutors().get());
         Thread.sleep(2000);
         assertEquals(ImmutableList.of(TASK_EXECUTOR_ID), resourceCluster.getAvailableTaskExecutors().get());
-        requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
+        requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
         assertEquals(
             TASK_EXECUTOR_ID,
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());
@@ -595,7 +594,7 @@ public class ResourceClusterActorTest {
             }
 
             expectedTaskExecutorIds.add(taskExecutorID);
-            requests.add(TaskExecutorAllocationRequest.of(workerId, AllocationConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
+            requests.add(TaskExecutorAllocationRequest.of(workerId, SchedulingConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
         }
         assertEquals(
             expectedTaskExecutorIds,
@@ -708,10 +707,10 @@ public class ResourceClusterActorTest {
             resourceCluster.heartBeatFromTaskExecutor(
                 new TaskExecutorHeartbeat(TASK_EXECUTOR_ID_2, CLUSTER_ID, TaskExecutorReport.available())).get());
         resourceCluster.disableTaskExecutorsFor(ATTRIBUTES, Instant.now().plus(Duration.ofDays(1)), Optional.empty()).get();
-        Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
+        Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
         assertThrows(ExecutionException.class, () -> resourceCluster.getTaskExecutorsFor(requests).get());
 
-        Set<TaskExecutorAllocationRequest> r2 = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION_2, ImmutableMap.of()), null, 0));
+        Set<TaskExecutorAllocationRequest> r2 = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION_2, ImmutableMap.of()), null, 0));
         assertEquals(
             TASK_EXECUTOR_ID_2,
             resourceCluster.getTaskExecutorsFor(r2).get().values().stream().findFirst().get());
@@ -746,7 +745,7 @@ public class ResourceClusterActorTest {
                 new TaskExecutorHeartbeat(TASK_EXECUTOR_ID, CLUSTER_ID, TaskExecutorReport.available())).join());
 
 
-        final Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, AllocationConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
+        final Set<TaskExecutorAllocationRequest> requests = Collections.singleton(TaskExecutorAllocationRequest.of(WORKER_ID, SchedulingConstraints.of(MACHINE_DEFINITION, ImmutableMap.of()), null, 0));
         assertEquals(
             TASK_EXECUTOR_ID,
             resourceCluster.getTaskExecutorsFor(requests).get().values().stream().findFirst().get());

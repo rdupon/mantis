@@ -25,8 +25,8 @@ import io.mantisrx.master.resourcecluster.proto.GetClusterIdleInstancesRequest;
 import io.mantisrx.master.resourcecluster.proto.GetClusterUsageResponse;
 import io.mantisrx.master.resourcecluster.proto.GetClusterUsageResponse.GetClusterUsageResponseBuilder;
 import io.mantisrx.master.resourcecluster.proto.GetClusterUsageResponse.UsageByGroupKey;
-import io.mantisrx.runtime.AllocationConstraints;
 import io.mantisrx.server.core.domain.WorkerId;
+import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.server.master.resourcecluster.ContainerSkuID;
 import io.mantisrx.server.master.resourcecluster.ResourceCluster.ResourceOverview;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorAllocationRequest;
@@ -66,9 +66,9 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
      * Cache the available executors ready to accept assignments. Note these executors' state are not strongly
      * synchronized and requires state level check when matching.
      */
-    private final Map<AllocationConstraints, NavigableSet<TaskExecutorHolder>> executorsBySchedulingConstraints = new HashMap<>();
+    private final Map<SchedulingConstraints, NavigableSet<TaskExecutorHolder>> executorsBySchedulingConstraints = new HashMap<>();
 
-    private final Map<String, String> allocationConstraintsAndDefaults;
+    private final Map<String, String> assignmentAttributesAndDefaults;
 
     private final Cache<String, JobRequirements> pendingJobRequests = CacheBuilder.newBuilder()
         .maximumSize(1000)
@@ -85,20 +85,20 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
             log.info("Archived TaskExecutor: {} removed due to: {}", notification.getKey(), notification.getCause()))
         .build();
 
-    public ExecutorStateManagerImpl(String allocationConstraintsAndDefaults) {
-        this.allocationConstraintsAndDefaults = allocationConstraintsAndDefaults.isEmpty() ? ImmutableMap.of() :Splitter.on(",").withKeyValueSeparator(':').split(allocationConstraintsAndDefaults);
+    public ExecutorStateManagerImpl(String assignmentAttributesAndDefaults) {
+        this.assignmentAttributesAndDefaults = assignmentAttributesAndDefaults.isEmpty() ? ImmutableMap.of() :Splitter.on(",").withKeyValueSeparator(':').split(assignmentAttributesAndDefaults);
     }
 
     @ToString
     class JobRequirements {
-        public final Map<AllocationConstraints, Integer> constraintsToWorkerCount;
+        public final Map<SchedulingConstraints, Integer> constraintsToWorkerCount;
 
-        public JobRequirements(Map<AllocationConstraints, Integer> constraintsToWorkerCount) {
+        public JobRequirements(Map<SchedulingConstraints, Integer> constraintsToWorkerCount) {
             this.constraintsToWorkerCount = constraintsToWorkerCount
                 .entrySet()
                 .stream()
                 .collect(Collectors.toMap(entry -> {
-                    Optional<AllocationConstraints> c = findBestFitAllocationConstraints(entry.getKey());
+                    Optional<SchedulingConstraints> c = findBestFitAllocationConstraints(entry.getKey());
                     return c.orElseGet(entry::getKey);
                 }, Entry::getValue));
         }
@@ -130,16 +130,16 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         if (state.isAvailable() && state.getRegistration() != null) {
             TaskExecutorHolder teHolder = TaskExecutorHolder.of(taskExecutorID, state.getRegistration());
             log.debug("Marking executor {} as available for matching.", teHolder);
-            AllocationConstraints allocationConstraints = state.getRegistration().getAllocationConstraints(allocationConstraintsAndDefaults);
-            if (!this.executorsBySchedulingConstraints.containsKey(allocationConstraints)) {
-                log.info("[executorsBySchedulingConstraints] adding {} from TE: {}", allocationConstraints, teHolder);
+            SchedulingConstraints schedulingConstraints = state.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults);
+            if (!this.executorsBySchedulingConstraints.containsKey(schedulingConstraints)) {
+                log.info("[executorsBySchedulingConstraints] adding {} from TE: {}", schedulingConstraints, teHolder);
                 this.executorsBySchedulingConstraints.putIfAbsent(
-                    allocationConstraints,
+                    schedulingConstraints,
                     new TreeSet<>(TaskExecutorHolder.generationFirstComparator));
             }
 
             log.info("Assign {} to available.", teHolder.getId());
-            return this.executorsBySchedulingConstraints.get(allocationConstraints).add(teHolder);
+            return this.executorsBySchedulingConstraints.get(schedulingConstraints).add(teHolder);
         }
         else {
             log.debug("Ignore unavailable TE: {}", taskExecutorID);
@@ -163,7 +163,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         if (this.taskExecutorStateMap.containsKey(taskExecutorID)) {
             TaskExecutorState taskExecutorState = this.taskExecutorStateMap.get(taskExecutorID);
             if (taskExecutorState.getRegistration() != null) {
-                AllocationConstraints constraints = taskExecutorState.getRegistration().getAllocationConstraints(allocationConstraintsAndDefaults);
+                SchedulingConstraints constraints = taskExecutorState.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults);
                 if (this.executorsBySchedulingConstraints.containsKey(constraints)) {
                     this.executorsBySchedulingConstraints.get(constraints)
                         .remove(TaskExecutorHolder.of(taskExecutorID, taskExecutorState.getRegistration()));
@@ -280,8 +280,8 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         final boolean isJobIdAlreadyPending = pendingJobRequests.getIfPresent(request.getJobId()) != null;
 
         // Tells how many TEs we need to allocate for a given SkuID
-        for (Entry<AllocationConstraints, List<TaskExecutorAllocationRequest>> entry : request.getGroupedByConstraints().entrySet()) {
-            final AllocationConstraints constraints = entry.getKey();
+        for (Entry<SchedulingConstraints, List<TaskExecutorAllocationRequest>> entry : request.getGroupedByConstraints().entrySet()) {
+            final SchedulingConstraints constraints = entry.getKey();
             final List<TaskExecutorAllocationRequest> allocationRequests = entry.getValue();
 
             Optional<Map<TaskExecutorID, TaskExecutorState>> taskExecutors = findTaskExecutorsFor(request, allocationRequests, constraints, isJobIdAlreadyPending, bestFit);
@@ -310,17 +310,17 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
 
     }
 
-    private Optional<AllocationConstraints> findBestFitAllocationConstraints(AllocationConstraints requestedConstraints) {
+    private Optional<SchedulingConstraints> findBestFitAllocationConstraints(SchedulingConstraints requestedConstraints) {
         return executorsBySchedulingConstraints.keySet()
             .stream()
             .max(Comparator.comparing(target ->
-                target.fitness(requestedConstraints, allocationConstraintsAndDefaults)
+                target.fitness(requestedConstraints, assignmentAttributesAndDefaults)
             ));
     }
 
-    private Optional<Map<TaskExecutorID, TaskExecutorState>> findBestFitFor(TaskExecutorBatchAssignmentRequest request, Integer numWorkers, AllocationConstraints constraints, BestFit currentBestFit) {
+    private Optional<Map<TaskExecutorID, TaskExecutorState>> findBestFitFor(TaskExecutorBatchAssignmentRequest request, Integer numWorkers, SchedulingConstraints constraints, BestFit currentBestFit) {
         // find SkuID which fits best
-        Optional<AllocationConstraints> targetConstraints = findBestFitAllocationConstraints(constraints);
+        Optional<SchedulingConstraints> targetConstraints = findBestFitAllocationConstraints(constraints);
         if (!targetConstraints.isPresent()) {
             log.warn("Cannot find any matching sku for request: {}", request);
             return Optional.empty();
@@ -347,7 +347,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
                     TaskExecutorState st = this.taskExecutorStateMap.get(teHolder.getId());
                     return st.isAvailable() &&
                         st.getRegistration() != null &&
-                        st.getRegistration().getAllocationConstraints(allocationConstraintsAndDefaults).fitness(constraints, allocationConstraintsAndDefaults) > 0;
+                        st.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults).fitness(constraints, assignmentAttributesAndDefaults) > 0;
                 })
                 .limit(numWorkers)
                 .map(TaskExecutorHolder::getId)
@@ -367,7 +367,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         Map<String, Integer> pendingCountByGroupKey = new HashMap<>();
         Map<String, Pair<Integer, Integer>> usageByGroupKey = new HashMap<>();
         // helper struct to verify job has been fully deployed so we can remove it from pending
-        Map<String, List<AllocationConstraints>> jobIdToMachineDef = new HashMap<>();
+        Map<String, List<SchedulingConstraints>> jobIdToMachineDef = new HashMap<>();
 
         taskExecutorStateMap.forEach((key, value) -> {
             if (value == null ||
@@ -405,10 +405,10 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
                 usageByGroupKey.put(groupKey, kvState);
             }
 
-            AllocationConstraints constraints = value.getRegistration().getAllocationConstraints(allocationConstraintsAndDefaults);
+            SchedulingConstraints constraints = value.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults);
             if ((value.isAssigned() || value.isRunningTask()) && value.getWorkerId() != null) {
                 if (pendingJobRequests.getIfPresent(value.getWorkerId().getJobId()) != null) {
-                    List<AllocationConstraints> workers = jobIdToMachineDef.getOrDefault(value.getWorkerId().getJobId(), new ArrayList<>());
+                    List<SchedulingConstraints> workers = jobIdToMachineDef.getOrDefault(value.getWorkerId().getJobId(), new ArrayList<>());
                     workers.add(constraints);
                     jobIdToMachineDef.put(value.getWorkerId().getJobId(), workers);
                 }
@@ -442,7 +442,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         return res;
     }
 
-    private int getPendingCountByAllocationConstraints(AllocationConstraints constraints) {
+    private int getPendingCountByAllocationConstraints(SchedulingConstraints constraints) {
         return pendingJobRequests
             .asMap()
             .values()
@@ -452,7 +452,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
             .orElse(0);
     }
 
-    private Optional<Map<TaskExecutorID, TaskExecutorState>> findTaskExecutorsFor(TaskExecutorBatchAssignmentRequest request, List<TaskExecutorAllocationRequest> allocationRequests, AllocationConstraints constraints, boolean isJobIdAlreadyPending, BestFit currentBestFit) {
+    private Optional<Map<TaskExecutorID, TaskExecutorState>> findTaskExecutorsFor(TaskExecutorBatchAssignmentRequest request, List<TaskExecutorAllocationRequest> allocationRequests, SchedulingConstraints constraints, boolean isJobIdAlreadyPending, BestFit currentBestFit) {
         // Finds best fit for N workers of the same machine def & allocation attributes
         final Optional<Map<TaskExecutorID, TaskExecutorState>> taskExecutors = findBestFitFor(
             request, allocationRequests.size(), constraints, currentBestFit);
