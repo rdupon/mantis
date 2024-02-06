@@ -137,7 +137,7 @@ public class ScheduleRequest implements QueuableTask {
         return jobMetadata;
     }
 
-    public SchedulingConstraints getAllocationConstraints() {
+    public SchedulingConstraints getSchedulingConstraints() {
         return schedulingConstraints;
     }
 

@@ -148,7 +148,6 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
                     event.getAttempt());
             }
 
-            // TODO: here 1
             CompletableFuture<Object> assignedFuture =
                 resourceCluster
                     .getTaskExecutorsFor(event.getTaskExecutorAllocationRequests())
@@ -198,7 +197,7 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
             resourceCluster
                 .getTaskExecutorsFor(
                     Collections.singleton(TaskExecutorAllocationRequest.of(
-                        event.getRequest().getWorkerId(), event.getRequest().getAllocationConstraints(), event.getRequest().getJobMetadata(), event.getRequest().getStageNum())))
+                        event.getRequest().getWorkerId(), event.getRequest().getSchedulingConstraints(), event.getRequest().getJobMetadata(), event.getRequest().getStageNum())))
                 .<Object>thenApply(allocation -> event.onAssignment(allocation.values().stream().findFirst().get()))
                 .exceptionally(event::onFailure);
 
@@ -403,7 +402,7 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
             this.allocationRequestScheduleRequestMap = request
                 .getScheduleRequests()
                 .stream()
-                .map(req -> Pair.of(req, TaskExecutorAllocationRequest.of(req.getWorkerId(), req.getAllocationConstraints(), req.getJobMetadata(), req.getStageNum())))
+                .map(req -> Pair.of(req, TaskExecutorAllocationRequest.of(req.getWorkerId(), req.getSchedulingConstraints(), req.getJobMetadata(), req.getStageNum())))
                 .collect(Collectors.toMap(Pair::getRight, Pair::getLeft));
         }
 

@@ -1592,8 +1592,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                         mantisJobMetaData.getSla().orElse(new JobSla.Builder().build()).getDurationType(),
                         SchedulingConstraints.of(
                             stageMetadata.getMachineDefinition(),
-                            getJobAssignmentAttributes(jobMetadata.getJobArtifact()),
-                            "small"),
+                            mergeJobDefAndArtifactAssigmentAttributes(jobMetadata.getJobArtifact())),
                         hardConstraints,
                         softConstraints,
                         readyAt.orElse(0L),
@@ -1606,27 +1605,24 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         }
 
         /**
-         * Retrieves attributes assignment used by the scheduler for the job artifact. It does it by first fetching
+         * Merges attributes assignment between job and artifact definitions. It does it by first fetching
          * the associated JobArtifact tags using the artifact ID from the job, and then merging them with the assignment
          * attributes from the job definition itself. The keys from the job definition take precedence over the
          * keys from the artifact's tags.
          *
          * @param artifactID the artifact used by the job whose attributes are to be fetched
          * @return A merged map of assignment attributes. The precedence of keys follows: job definition > artifact's tags.
-         * @throws IOException if an I/O error occurs during the fetch operation from jobStore
          */
-        private Map<String, String> getJobAssignmentAttributes(ArtifactID artifactID) throws IOException {
-            // TODO: test this!!!
-            final JobArtifact artifact;
+        private Map<String, String> mergeJobDefAndArtifactAssigmentAttributes(ArtifactID artifactID) {
             try {
-                artifact = jobStore.getJobArtifact(artifactID);
-            } catch (IOException e) {
-                LOGGER.error("Couldn't find job artifact by id: {}", artifactID);
-                throw e;
+                JobArtifact artifact = jobStore.getJobArtifact(artifactID);
+                Map<String, String> mergedMap = new HashMap<>(artifact.getTags());
+                mergedMap.putAll(mantisJobMetaData.getJobDefinition().getAssignmentAttributes());
+                return mergedMap;
+            } catch (Exception e) {
+                LOGGER.warn("Couldn't find job artifact by id: {}", artifactID, e);
             }
-            Map<String, String> mergedMap = new HashMap<>(artifact.getTags());
-            mergedMap.putAll(mantisJobMetaData.getJobDefinition().getAssignmentAttributes());
-            return mergedMap;
+            return mantisJobMetaData.getJobDefinition().getAssignmentAttributes();
         }
 
         private List<IMantisWorkerMetadata> getInitialWorkers(JobDefinition jobDetails, long submittedAt)
@@ -1638,7 +1634,6 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             Iterator<Integer> it = schedulingInfo.getStages().keySet().iterator();
             while (it.hasNext()) {
                 int stageNum = it.next();
-                // TODO: in here we need to pass the machine right definition and use size label in case exists...
                 List<IMantisWorkerMetadata> stageWorkers = setupStageWorkers(schedulingInfo, totalStages,
                         stageNum, submittedAt);
                 workerRequests.addAll(stageWorkers);
@@ -1670,7 +1665,6 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                             withJobId(jobId)
                             .withStageNum(stageNum)
                             .withNumStages(totalStages)
-                            // TODO: here we want to update the way to get the MD
                             .withMachineDefinition(stage.getMachineDefinition())
                             .withNumWorkers(numInstancesAtStage)
                             .withHardConstraints(stage.getHardConstraints())

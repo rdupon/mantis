@@ -267,7 +267,8 @@ public class ResourceClusterScalerActor extends AbstractActorWithTimers {
             return;
         }
         this.resourceClusterActor.tell(
-            new GetClusterUsageRequest(this.clusterId, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
+            new GetClusterUsageRequest(
+                this.clusterId, ResourceClusterScalerActor.groupKeyFromTaskExecutorDefinitionIdFunc),
             self());
     }
 
@@ -505,5 +506,5 @@ public class ResourceClusterScalerActor extends AbstractActorWithTimers {
      * as a string. Here the key function is used to retrieve the map this string as grouping kye.
      */
     static Function<TaskExecutorRegistration, Optional<String>> groupKeyFromTaskExecutorDefinitionIdFunc =
-        reg -> reg.getTaskExecutorContainerDefinitionId().map(ContainerSkuID::getResourceID);
+        reg -> reg.getTaskExecutorContainerDefinitionId().map(id -> id.getResourceID());
 }

@@ -146,7 +146,7 @@ public class MachineDefinition implements Serializable {
      * current MachineDefinition, the function returns 0.0. Otherwise, the function returns an average score, which is the
      * proportional difference of CPU cores and the memory in relation to the current instance's MachineDefinition.
      */
-    public double fitness(MachineDefinition o) {
+    public double fitnessCoresAndMem(MachineDefinition o) {
         if (!canFit(o)) {
             return 0.0;
         }

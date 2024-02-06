@@ -68,6 +68,12 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
      */
     private final Map<SchedulingConstraints, NavigableSet<TaskExecutorHolder>> executorsBySchedulingConstraints = new HashMap<>();
 
+    /**
+     * A map holding the assignment attributes as keys and their corresponding default values.
+     * These assignment attributes are used during worker scheduling. The keys correspond to attributes
+     * like jdk or springBoot version, and if any of these attributes is not explicitly provided
+     * or not found during allocation, the associated default value from this map is used.
+     */
     private final Map<String, String> assignmentAttributesAndDefaults;
 
     private final Cache<String, JobRequirements> pendingJobRequests = CacheBuilder.newBuilder()
@@ -97,10 +103,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
             this.constraintsToWorkerCount = constraintsToWorkerCount
                 .entrySet()
                 .stream()
-                .collect(Collectors.toMap(entry -> {
-                    Optional<SchedulingConstraints> c = findBestFitAllocationConstraints(entry.getKey());
-                    return c.orElseGet(entry::getKey);
-                }, Entry::getValue));
+                .collect(Collectors.toMap(entry -> findBestFitAllocationConstraints(entry.getKey()).orElseGet(entry::getKey), Entry::getValue));
         }
 
         public int getTotalWorkers() {
@@ -130,7 +133,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         if (state.isAvailable() && state.getRegistration() != null) {
             TaskExecutorHolder teHolder = TaskExecutorHolder.of(taskExecutorID, state.getRegistration());
             log.debug("Marking executor {} as available for matching.", teHolder);
-            SchedulingConstraints schedulingConstraints = state.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults);
+            SchedulingConstraints schedulingConstraints = state.getRegistration().getSchedulingConstraints(assignmentAttributesAndDefaults);
             if (!this.executorsBySchedulingConstraints.containsKey(schedulingConstraints)) {
                 log.info("[executorsBySchedulingConstraints] adding {} from TE: {}", schedulingConstraints, teHolder);
                 this.executorsBySchedulingConstraints.putIfAbsent(
@@ -163,7 +166,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         if (this.taskExecutorStateMap.containsKey(taskExecutorID)) {
             TaskExecutorState taskExecutorState = this.taskExecutorStateMap.get(taskExecutorID);
             if (taskExecutorState.getRegistration() != null) {
-                SchedulingConstraints constraints = taskExecutorState.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults);
+                SchedulingConstraints constraints = taskExecutorState.getRegistration().getSchedulingConstraints(assignmentAttributesAndDefaults);
                 if (this.executorsBySchedulingConstraints.containsKey(constraints)) {
                     this.executorsBySchedulingConstraints.get(constraints)
                         .remove(TaskExecutorHolder.of(taskExecutorID, taskExecutorState.getRegistration()));
@@ -279,7 +282,6 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         final BestFit bestFit = new BestFit();
         final boolean isJobIdAlreadyPending = pendingJobRequests.getIfPresent(request.getJobId()) != null;
 
-        // Tells how many TEs we need to allocate for a given SkuID
         for (Entry<SchedulingConstraints, List<TaskExecutorAllocationRequest>> entry : request.getGroupedByConstraints().entrySet()) {
             final SchedulingConstraints constraints = entry.getKey();
             final List<TaskExecutorAllocationRequest> allocationRequests = entry.getValue();
@@ -310,6 +312,16 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
 
     }
 
+    /**
+     * Finds the best fit scheduling constraints from the current set of executors
+     * based on the provided `requestedConstraints`.
+     *
+     * @param requestedConstraints - Constraints of the scheduling request which serves as the reference for determining the best fit.
+     *
+     * @return - An Optional<SchedulingConstraints> which holds the best fit scheduling constraints. If no fitting constraints
+     * are found, an empty Optional is returned. The chosen constraints are the ones with the highest fitness score
+     * when compared with the `requestedConstraints`.
+     */
     private Optional<SchedulingConstraints> findBestFitAllocationConstraints(SchedulingConstraints requestedConstraints) {
         return executorsBySchedulingConstraints.keySet()
             .stream()
@@ -319,7 +331,6 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
     }
 
     private Optional<Map<TaskExecutorID, TaskExecutorState>> findBestFitFor(TaskExecutorBatchAssignmentRequest request, Integer numWorkers, SchedulingConstraints constraints, BestFit currentBestFit) {
-        // find SkuID which fits best
         Optional<SchedulingConstraints> targetConstraints = findBestFitAllocationConstraints(constraints);
         if (!targetConstraints.isPresent()) {
             log.warn("Cannot find any matching sku for request: {}", request);
@@ -347,7 +358,8 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
                     TaskExecutorState st = this.taskExecutorStateMap.get(teHolder.getId());
                     return st.isAvailable() &&
                         st.getRegistration() != null &&
-                        st.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults).fitness(constraints, assignmentAttributesAndDefaults) > 0;
+                        // TODO: figure out whether we can make assignmentAttributesAndDefaults a better use?!
+                        st.getRegistration().getSchedulingConstraints(assignmentAttributesAndDefaults).canFit(constraints, assignmentAttributesAndDefaults);
                 })
                 .limit(numWorkers)
                 .map(TaskExecutorHolder::getId)
@@ -405,7 +417,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
                 usageByGroupKey.put(groupKey, kvState);
             }
 
-            SchedulingConstraints constraints = value.getRegistration().getAllocationConstraints(assignmentAttributesAndDefaults);
+            SchedulingConstraints constraints = value.getRegistration().getSchedulingConstraints(assignmentAttributesAndDefaults);
             if ((value.isAssigned() || value.isRunningTask()) && value.getWorkerId() != null) {
                 if (pendingJobRequests.getIfPresent(value.getWorkerId().getJobId()) != null) {
                     List<SchedulingConstraints> workers = jobIdToMachineDef.getOrDefault(value.getWorkerId().getJobId(), new ArrayList<>());
@@ -447,6 +459,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
             .asMap()
             .values()
             .stream()
+            // TODO: probably in here we can use best fitting function instead ???
             .map(req -> req.constraintsToWorkerCount.getOrDefault(constraints, 0))
             .reduce(Integer::sum)
             .orElse(0);

@@ -252,6 +252,13 @@ public class JobDefinition {
             .map(l -> ClusterID.of(l.getValue()));
     }
 
+    /**
+     * Returns the map of assignment attributes deduced from labels. The attributes are extracted
+     * from labels matching the "SCHEDULING_CONSTRAINT_LABEL_REGEX" pattern, and only the capturing
+     * group content (i.e., the key that comes after "_mantis.schedulingConstraint.") is saved.
+     *
+     * The return value would be used as constraint during worker scheduling.
+     */
     public Map<String, String> getAssignmentAttributes() {
         return labels.entrySet().stream()
             .map(label -> {

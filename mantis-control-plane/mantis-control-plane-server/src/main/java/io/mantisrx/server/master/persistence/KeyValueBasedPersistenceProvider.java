@@ -110,7 +110,6 @@ public class KeyValueBasedPersistenceProvider implements IMantisPersistenceProvi
     private static final String TASK_EXECUTOR_REGISTRATION = "TaskExecutorRegistration";
     private static final String DISABLE_TASK_EXECUTOR_REQUESTS = "MantisDisableTaskExecutorRequests";
     private static final String CONTROLPLANE_NS = "mantis_controlplane";
-    private static final String SKU_SIZES_NS = "mantis_global_cluster_sku_size";
     private static final String JOB_ARTIFACTS_NS = "mantis_global_job_artifacts";
     private static final String JOB_ARTIFACTS_TO_CACHE_PER_CLUSTER_ID_NS = "mantis_global_cached_artifacts";
 
@@ -912,7 +911,6 @@ public class KeyValueBasedPersistenceProvider implements IMantisPersistenceProvi
     private static final String CLUSTER_REGISTRATION_KEY = "resource_cluster_registrations";
 
     private static final String RESOURCE_CLUSTER_RULE_PREFIX = "ResourceClusterRulePrefix";
-
     private static String getClusterRuleKeyFromId(ClusterID id) {
         return RESOURCE_CLUSTER_RULE_PREFIX + "_" + id.getResourceID();
     }

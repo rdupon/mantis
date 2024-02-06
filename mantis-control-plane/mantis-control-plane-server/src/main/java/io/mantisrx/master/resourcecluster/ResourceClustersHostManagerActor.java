@@ -23,6 +23,7 @@ import akka.japi.pf.ReceiveBuilder;
 import io.mantisrx.master.jobcluster.proto.BaseResponse.ResponseCode;
 import io.mantisrx.master.resourcecluster.proto.GetResourceClusterSpecRequest;
 import io.mantisrx.master.resourcecluster.proto.ListResourceClusterRequest;
+import io.mantisrx.master.resourcecluster.proto.MantisResourceClusterSpec.SkuTypeSpec;
 import io.mantisrx.master.resourcecluster.proto.ProvisionResourceClusterRequest;
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterAPIProto.DeleteResourceClusterRequest;
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterAPIProto.DeleteResourceClusterResponse;
@@ -36,7 +37,6 @@ import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleRuleProto.Ge
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleRuleProto.GetResourceClusterScaleRulesResponse;
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleSpec;
 import io.mantisrx.master.resourcecluster.proto.ScaleResourceRequest;
-import io.mantisrx.master.resourcecluster.proto.SkuTypeSpec;
 import io.mantisrx.master.resourcecluster.proto.UpgradeClusterContainersRequest;
 import io.mantisrx.master.resourcecluster.proto.UpgradeClusterContainersResponse;
 import io.mantisrx.master.resourcecluster.resourceprovider.ResourceClusterProvider;
@@ -383,7 +383,7 @@ public class ResourceClustersHostManagerActor extends AbstractActorWithTimers {
         pipe(upgradeFut, getContext().dispatcher()).to(getSender());
     }
 
-    private Optional<String> validateClusterSpec(ProvisionResourceClusterRequest req) {
+    private static Optional<String> validateClusterSpec(ProvisionResourceClusterRequest req) {
         if (req.getClusterSpec() == null) {
             log.error("Empty request without cluster spec: {}", req.getClusterId());
             return Optional.of("cluster spec cannot be null");

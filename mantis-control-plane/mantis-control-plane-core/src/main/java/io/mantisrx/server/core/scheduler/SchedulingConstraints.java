@@ -56,7 +56,7 @@ public class SchedulingConstraints {
         if (!areAllocationConstraintsSatisfied(constraints, assignmentAttributesAndDefaults)) {
             return 0.0;
         }
-        return machineDefinition.fitness(constraints.getMachineDefinition());
+        return machineDefinition.fitnessCoresAndMem(constraints.getMachineDefinition());
     }
 
     /**
@@ -74,5 +74,9 @@ public class SchedulingConstraints {
                 .getOrDefault(entry.getKey(), entry.getValue())
                 .equalsIgnoreCase(constraints.getAssignmentAttributes()
                     .getOrDefault(entry.getKey(), entry.getValue())));
+    }
+
+    public boolean canFit(SchedulingConstraints constraints, Map<String, String> assignmentAttributesAndDefaults) {
+        return areAllocationConstraintsSatisfied(constraints, assignmentAttributesAndDefaults) & machineDefinition.canFit(constraints.getMachineDefinition());
     }
 }

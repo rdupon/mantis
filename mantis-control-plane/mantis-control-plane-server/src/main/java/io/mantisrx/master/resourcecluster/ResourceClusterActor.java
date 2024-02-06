@@ -116,8 +116,6 @@ class ResourceClusterActor extends AbstractActorWithTimers {
 
     private final boolean isJobArtifactCachingEnabled;
 
-    private final String assignmentAttributesAndDefaults;
-
     static Props props(final ClusterID clusterID, final Duration heartbeatTimeout, Duration assignmentTimeout, Duration disabledTaskExecutorsCheckInterval, Clock clock, RpcService rpcService, MantisJobStore mantisJobStore, JobMessageRouter jobMessageRouter, int maxJobArtifactsToCache, String jobClustersWithArtifactCachingEnabled, boolean isJobArtifactCachingEnabled, String assignmentAttributesAndDefaults) {
         return Props.create(ResourceClusterActor.class, clusterID, heartbeatTimeout, assignmentTimeout, disabledTaskExecutorsCheckInterval, clock, rpcService, mantisJobStore, jobMessageRouter, maxJobArtifactsToCache, jobClustersWithArtifactCachingEnabled, isJobArtifactCachingEnabled, assignmentAttributesAndDefaults)
                 .withMailbox("akka.actor.metered-mailbox");
@@ -141,7 +139,6 @@ class ResourceClusterActor extends AbstractActorWithTimers {
         this.assignmentTimeout = assignmentTimeout;
         this.disabledTaskExecutorsCheckInterval = disabledTaskExecutorsCheckInterval;
         this.isJobArtifactCachingEnabled = isJobArtifactCachingEnabled;
-        this.assignmentAttributesAndDefaults = assignmentAttributesAndDefaults;
 
         this.clock = clock;
         this.rpcService = rpcService;
@@ -152,18 +149,9 @@ class ResourceClusterActor extends AbstractActorWithTimers {
         this.maxJobArtifactsToCache = maxJobArtifactsToCache;
         this.jobClustersWithArtifactCachingEnabled = jobClustersWithArtifactCachingEnabled;
 
-        this.executorStateManager = createExecutorStateManager();
+        this.executorStateManager = new ExecutorStateManagerImpl(assignmentAttributesAndDefaults);
 
         this.metrics = new ResourceClusterActorMetrics();
-    }
-
-    private ExecutorStateManager createExecutorStateManager() {
-        try {
-            return new ExecutorStateManagerImpl(assignmentAttributesAndDefaults);
-        } catch (Exception e) {
-            log.error("No resource cluster spec found for {}", clusterID);
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
@@ -628,35 +616,16 @@ class ResourceClusterActor extends AbstractActorWithTimers {
         }
     }
 
-//    private TaskExecutorBatchAssignmentRequest resolveMachineDefinition(TaskExecutorBatchAssignmentRequest request) {
-//
-//        return new TaskExecutorBatchAssignmentRequest(request.getAllocationRequests().stream().map(req -> {
-//            StageSchedulingInfo stage = req
-//                .getJobMetadata()
-//                .getSchedulingInfo()
-//                .forStage(req.getStageNum());
-//            MachineDefinition mD =
-//                stage.getContainerAttributes().containsKey("sizeName") ? null : stage.getMachineDefinition();
-//            return TaskExecutorAllocationRequest.of(
-//                req.getWorkerId(),
-//                SchedulingConstraints.of(mD, req.getConstraints().getAssignmentAttributes()),
-//                req.getJobMetadata(),
-//                req.getStageNum());
-//        }).collect(Collectors.toSet()), request.getClusterID());
-//    }
-
     private void onTaskExecutorBatchAssignmentRequest(TaskExecutorBatchAssignmentRequest request) {
-        TaskExecutorBatchAssignmentRequest finalRequest = resolveMachineDefinition(request);
-        Optional<BestFit> matchedExecutors = this.executorStateManager.findBestFit(finalRequest);
+        Optional<BestFit> matchedExecutors = this.executorStateManager.findBestFit(request);
 
         if (matchedExecutors.isPresent()) {
-            log.info("Matched all executors {} for request {}", matchedExecutors.get(), finalRequest);
+            log.info("Matched all executors {} for request {}", matchedExecutors.get(), request);
             matchedExecutors.get().getBestFit().forEach((allocationRequest, taskExecutorToState) -> assignTaskExecutor(
-                allocationRequest, taskExecutorToState.getLeft(), taskExecutorToState.getRight(), finalRequest));
+                allocationRequest, taskExecutorToState.getLeft(), taskExecutorToState.getRight(), request));
             sender().tell(new TaskExecutorsAllocation(matchedExecutors.get().getRequestToTaskExecutorMap()), self());
         } else {
-            finalRequest.allocationRequests.forEach(req -> metrics.incrementCounter(
-                // TODO(fdichiara): replace cpu+mem with skuID
+            request.allocationRequests.forEach(req -> metrics.incrementCounter(
                 ResourceClusterActorMetrics.NO_RESOURCES_AVAILABLE,
                 TagList.create(ImmutableMap.of(
                     "resourceCluster",
@@ -670,7 +639,7 @@ class ResourceClusterActor extends AbstractActorWithTimers {
                     "memoryMB",
                     String.valueOf(req.getConstraints().getMachineDefinition().getMemoryMB())))));
             sender().tell(new Status.Failure(new NoResourceAvailableException(
-                String.format("No resource available for request %s: resource overview: %s", finalRequest,
+                String.format("No resource available for request %s: resource overview: %s", request,
                     getResourceOverview()))), self());
         }
     }

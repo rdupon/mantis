@@ -23,12 +23,18 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * SkuSizeSpec class represents the SKU size specifications.
+ * Contains the name of the SKU size (equivalent to the 't-shirt size') and the machine definition.
+ */
 @Builder
 @Value
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class SkuSizeSpec {
-    String name; // ie. small
+    // The name of the SKU size (e.g. small, large etc.)
+    String name;
 
+    // The MachineDefinition object that includes the specifications of a machine: CPU, disk, memory, and network.
     MachineDefinition machineDefinition;
 
     @JsonCreator

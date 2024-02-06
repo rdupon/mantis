@@ -145,8 +145,23 @@ public class TaskExecutorRegistration {
         return Optional.empty();
     }
 
+    /**
+     * Computes the scheduling constraints of the current registration. It navigates through all entries in
+     * the provided allocationAttributesWithDefault map. If a key is detected within the registration's attributes, the value
+     * linked to it is used. In cases where a key is not present in the registration's attributes, the default value from
+     * the allocationAttributesWithDefault is maintained. The method then utilizes this refined map of allocation attributes to
+     * create a SchedulingConstraints object.
+     *
+     * The keys in allocationAttributesWithDefault denote the necessary attributes for scheduling, while the values act as
+     * the fallback options when a specific attribute value isn't located in an external attribute store.
+     *
+     * @param allocationAttributesWithDefault The keys are allocations attributes that will be checked during scheduling and
+     *                                        the values are possible defaults in case the keys are not present in the external
+     *                                        attribute store.
+     * @return The SchedulingConstraints which is based on the machineDefinition and the processed allocation attributes.
+     */
     @JsonIgnore
-    public SchedulingConstraints getAllocationConstraints(Map<String, String> allocationAttributesWithDefault) {
+    public SchedulingConstraints getSchedulingConstraints(Map<String, String> allocationAttributesWithDefault) {
         Map<String, String> attributes = allocationAttributesWithDefault
             .entrySet()
             .stream()

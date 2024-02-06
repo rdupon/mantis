@@ -114,10 +114,8 @@ import io.mantisrx.master.jobcluster.proto.JobProto;
 import io.mantisrx.runtime.JobConstraints;
 import io.mantisrx.runtime.JobSla;
 import io.mantisrx.runtime.command.InvalidJobException;
-import io.mantisrx.runtime.descriptor.SchedulingInfo;
 import io.mantisrx.runtime.descriptor.StageSchedulingInfo;
 import io.mantisrx.server.core.JobCompletedReason;
-import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.server.master.ConstraintsEvaluators;
 import io.mantisrx.server.master.InvalidJobRequest;
 import io.mantisrx.server.master.config.ConfigurationProvider;
@@ -145,7 +143,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -1352,7 +1349,6 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
             } else {
                 resolvedJobDefn = getResolvedJobDefinition(request.getSubmitter(), request.getJobDefinition());
             }
-            resolvedJobDefn = resolveMachineDefinition(resolvedJobDefn);
             eventPublisher.publishStatusEvent(new LifecycleEventsProto.JobClusterStatusEvent(LifecycleEventsProto.StatusEvent.StatusEventType.INFO,
                 "Job submit request received", jobClusterMetadata.getJobClusterDefinition().getName()));
             resolvedJobDefn = LabelManager.insertSystemLabels(resolvedJobDefn, request.isAutoResubmit());
@@ -1370,33 +1366,6 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
             numJobSubmissionFailures.increment();
             sender.tell(new SubmitJobResponse(request.requestId, CLIENT_ERROR, e.getMessage(), empty()), getSelf());
         }
-    }
-
-    private JobDefinition resolveMachineDefinition(JobDefinition jobDefinition) throws InvalidJobException {
-        // SchedulingInfo
-        Map<Integer, StageSchedulingInfo> stages = jobDefinition
-            .getSchedulingInfo()
-            .getStages()
-            .entrySet()
-            .stream()
-            .collect(Collectors.toMap(Entry::getKey, entry -> {
-                if (entry.getValue().getContainerAttributes().containsKey("skuName")) {
-                    StageSchedulingInfo schedulingInfo = null;
-                    Optional<SchedulingConstraints> c = findBestFitAllocationConstraints(entry.getKey());
-                }
-                return entry.getValue();
-            }));
-        return
-            new JobDefinition.Builder()
-                .withJobSla(new JobSla.Builder().build())
-                .withArtifactName(jobDefinition.getArtifactName())
-                .withVersion(jobDefinition.getVersion())
-                .withLabels(jobDefinition.getLabels())
-                .withName(jobDefinition.getName())
-                .withParameters(jobDefinition.getParameters())
-                .withSchedulingInfo(new SchedulingInfo(stages))
-                .withUser(jobDefinition.getUser())
-                .build();
     }
 
     public void onGetJobDefinitionUpdatedFromJobActorResponse(GetJobDefinitionUpdatedFromJobActorResponse request) {
@@ -1504,7 +1473,6 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
      * @throws Exception If jobDefinition could not be resolved
      */
     private JobDefinition getResolvedJobDefinition(final String user, final Optional<JobDefinition> givenJobDefnOp) throws Exception {
-        // TODO: probably the mapping can also happen in here????
         JobDefinition resolvedJobDefn;
         if (givenJobDefnOp.isPresent()) {
             if (givenJobDefnOp.get().getSchedulingInfo() != null && givenJobDefnOp.get().requireInheritInstanceCheck()) {
@@ -1542,7 +1510,6 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
     }
 
     private JobDefinition fromJobClusterDefinition(String user, IJobClusterDefinition clusterDefinition) throws InvalidJobException {
-        // TODO: probably the mapping can also happen in here????
         JobClusterConfig clusterConfig = clusterDefinition.getJobClusterConfig();
         return
             new JobDefinition.Builder()
@@ -1569,7 +1536,6 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
             final int workerTimeoutSecs = jobDefinition.getIntSystemParameter(JOB_WORKER_TIMEOUT_SECS, 0);
             logger.info("Creating new job id: {} with job defn {}, with heartbeat {} and workertimeout {}",
                 jId, jobDefinition, heartbeatIntervalSecs, workerTimeoutSecs);
-            // TODO: we could also make the change in here and forget!
             MantisJobMetadataImpl mantisJobMetaData = new MantisJobMetadataImpl.Builder()
                     .withJobId(jId)
                     .withSubmittedAt(Instant.now())
@@ -2247,8 +2213,6 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
                     .withVersion(artifactReq.getVersion())
                     .withUploadedAt(System.currentTimeMillis())
                     .build();
-
-            // TODO: we want to make sure labels are included as well?? since the artifact choice determines the scheduling constraints...
 
             updateJobClusterConfig(newConfig);
             if(!artifactReq.isSkipSubmit()) {
