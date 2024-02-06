@@ -628,16 +628,34 @@ class ResourceClusterActor extends AbstractActorWithTimers {
         }
     }
 
+//    private TaskExecutorBatchAssignmentRequest resolveMachineDefinition(TaskExecutorBatchAssignmentRequest request) {
+//
+//        return new TaskExecutorBatchAssignmentRequest(request.getAllocationRequests().stream().map(req -> {
+//            StageSchedulingInfo stage = req
+//                .getJobMetadata()
+//                .getSchedulingInfo()
+//                .forStage(req.getStageNum());
+//            MachineDefinition mD =
+//                stage.getContainerAttributes().containsKey("sizeName") ? null : stage.getMachineDefinition();
+//            return TaskExecutorAllocationRequest.of(
+//                req.getWorkerId(),
+//                SchedulingConstraints.of(mD, req.getConstraints().getAssignmentAttributes()),
+//                req.getJobMetadata(),
+//                req.getStageNum());
+//        }).collect(Collectors.toSet()), request.getClusterID());
+//    }
+
     private void onTaskExecutorBatchAssignmentRequest(TaskExecutorBatchAssignmentRequest request) {
-        Optional<BestFit> matchedExecutors = this.executorStateManager.findBestFit(request);
+        TaskExecutorBatchAssignmentRequest finalRequest = resolveMachineDefinition(request);
+        Optional<BestFit> matchedExecutors = this.executorStateManager.findBestFit(finalRequest);
 
         if (matchedExecutors.isPresent()) {
-            log.info("Matched all executors {} for request {}", matchedExecutors.get(), request);
+            log.info("Matched all executors {} for request {}", matchedExecutors.get(), finalRequest);
             matchedExecutors.get().getBestFit().forEach((allocationRequest, taskExecutorToState) -> assignTaskExecutor(
-                allocationRequest, taskExecutorToState.getLeft(), taskExecutorToState.getRight(), request));
+                allocationRequest, taskExecutorToState.getLeft(), taskExecutorToState.getRight(), finalRequest));
             sender().tell(new TaskExecutorsAllocation(matchedExecutors.get().getRequestToTaskExecutorMap()), self());
         } else {
-            request.allocationRequests.forEach(req -> metrics.incrementCounter(
+            finalRequest.allocationRequests.forEach(req -> metrics.incrementCounter(
                 // TODO(fdichiara): replace cpu+mem with skuID
                 ResourceClusterActorMetrics.NO_RESOURCES_AVAILABLE,
                 TagList.create(ImmutableMap.of(
@@ -652,7 +670,7 @@ class ResourceClusterActor extends AbstractActorWithTimers {
                     "memoryMB",
                     String.valueOf(req.getConstraints().getMachineDefinition().getMemoryMB())))));
             sender().tell(new Status.Failure(new NoResourceAvailableException(
-                String.format("No resource available for request %s: resource overview: %s", request,
+                String.format("No resource available for request %s: resource overview: %s", finalRequest,
                     getResourceOverview()))), self());
         }
     }

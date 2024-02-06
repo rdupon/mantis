@@ -114,8 +114,10 @@ import io.mantisrx.master.jobcluster.proto.JobProto;
 import io.mantisrx.runtime.JobConstraints;
 import io.mantisrx.runtime.JobSla;
 import io.mantisrx.runtime.command.InvalidJobException;
+import io.mantisrx.runtime.descriptor.SchedulingInfo;
 import io.mantisrx.runtime.descriptor.StageSchedulingInfo;
 import io.mantisrx.server.core.JobCompletedReason;
+import io.mantisrx.server.core.scheduler.SchedulingConstraints;
 import io.mantisrx.server.master.ConstraintsEvaluators;
 import io.mantisrx.server.master.InvalidJobRequest;
 import io.mantisrx.server.master.config.ConfigurationProvider;
@@ -143,6 +145,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -1349,6 +1352,7 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
             } else {
                 resolvedJobDefn = getResolvedJobDefinition(request.getSubmitter(), request.getJobDefinition());
             }
+            resolvedJobDefn = resolveMachineDefinition(resolvedJobDefn);
             eventPublisher.publishStatusEvent(new LifecycleEventsProto.JobClusterStatusEvent(LifecycleEventsProto.StatusEvent.StatusEventType.INFO,
                 "Job submit request received", jobClusterMetadata.getJobClusterDefinition().getName()));
             resolvedJobDefn = LabelManager.insertSystemLabels(resolvedJobDefn, request.isAutoResubmit());
@@ -1366,6 +1370,33 @@ public class JobClusterActor extends AbstractActorWithTimers implements IJobClus
             numJobSubmissionFailures.increment();
             sender.tell(new SubmitJobResponse(request.requestId, CLIENT_ERROR, e.getMessage(), empty()), getSelf());
         }
+    }
+
+    private JobDefinition resolveMachineDefinition(JobDefinition jobDefinition) throws InvalidJobException {
+        // SchedulingInfo
+        Map<Integer, StageSchedulingInfo> stages = jobDefinition
+            .getSchedulingInfo()
+            .getStages()
+            .entrySet()
+            .stream()
+            .collect(Collectors.toMap(Entry::getKey, entry -> {
+                if (entry.getValue().getContainerAttributes().containsKey("skuName")) {
+                    StageSchedulingInfo schedulingInfo = null;
+                    Optional<SchedulingConstraints> c = findBestFitAllocationConstraints(entry.getKey());
+                }
+                return entry.getValue();
+            }));
+        return
+            new JobDefinition.Builder()
+                .withJobSla(new JobSla.Builder().build())
+                .withArtifactName(jobDefinition.getArtifactName())
+                .withVersion(jobDefinition.getVersion())
+                .withLabels(jobDefinition.getLabels())
+                .withName(jobDefinition.getName())
+                .withParameters(jobDefinition.getParameters())
+                .withSchedulingInfo(new SchedulingInfo(stages))
+                .withUser(jobDefinition.getUser())
+                .build();
     }
 
     public void onGetJobDefinitionUpdatedFromJobActorResponse(GetJobDefinitionUpdatedFromJobActorResponse request) {

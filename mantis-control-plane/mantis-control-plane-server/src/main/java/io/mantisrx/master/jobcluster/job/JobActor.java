@@ -1592,7 +1592,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                         mantisJobMetaData.getSla().orElse(new JobSla.Builder().build()).getDurationType(),
                         SchedulingConstraints.of(
                             stageMetadata.getMachineDefinition(),
-                            getJobAssignmentAttributes(jobMetadata.getJobArtifact())),
+                            getJobAssignmentAttributes(jobMetadata.getJobArtifact()),
+                            "small"),
                         hardConstraints,
                         softConstraints,
                         readyAt.orElse(0L),

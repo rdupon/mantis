@@ -40,7 +40,6 @@ public class SchedulingConstraints {
     // Additional attributes for assignment (ie. jdkVersion:17 or springBootVersion:3)
     Map<String, String> assignmentAttributes;
 
-
     /**
      * Measures the compatibility of provided scheduling constraints with those of this instance.
      * Evaluation is done based on the machine definition and the given assignment attributes.

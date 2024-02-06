@@ -148,6 +148,7 @@ class ResourceClusterAwareSchedulerActor extends AbstractActorWithTimers {
                     event.getAttempt());
             }
 
+            // TODO: here 1
             CompletableFuture<Object> assignedFuture =
                 resourceCluster
                     .getTaskExecutorsFor(event.getTaskExecutorAllocationRequests())

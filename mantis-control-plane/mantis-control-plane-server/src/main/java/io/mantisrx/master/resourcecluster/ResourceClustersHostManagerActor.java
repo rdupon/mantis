@@ -35,9 +35,7 @@ import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleRuleProto.Cr
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleRuleProto.GetResourceClusterScaleRulesRequest;
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleRuleProto.GetResourceClusterScaleRulesResponse;
 import io.mantisrx.master.resourcecluster.proto.ResourceClusterScaleSpec;
-import io.mantisrx.master.resourcecluster.proto.ResourceClusterSkuSizeProto.GetResourceClusterSkuSizesResponse;
 import io.mantisrx.master.resourcecluster.proto.ScaleResourceRequest;
-import io.mantisrx.master.resourcecluster.proto.SkuSizeSpec;
 import io.mantisrx.master.resourcecluster.proto.SkuTypeSpec;
 import io.mantisrx.master.resourcecluster.proto.UpgradeClusterContainersRequest;
 import io.mantisrx.master.resourcecluster.proto.UpgradeClusterContainersResponse;
@@ -50,7 +48,6 @@ import io.mantisrx.master.resourcecluster.writable.ResourceClusterSpecWritable;
 import io.mantisrx.server.master.persistence.IMantisPersistenceProvider;
 import io.mantisrx.shaded.com.google.common.base.Strings;
 import java.io.IOException;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -192,21 +189,6 @@ public class ResourceClustersHostManagerActor extends AbstractActorWithTimers {
                     .skuId(kv.getValue().getSkuId())
                     .build())
                 .collect(Collectors.toList()))
-            .build();
-    }
-
-    private GetResourceClusterSkuSizesResponse toGetResourceClusterSkuSizesResponse(List<SkuSizeSpec> skuSizeSpecs) {
-        return GetResourceClusterSkuSizesResponse.builder()
-            .responseCode(ResponseCode.SUCCESS)
-            .skuSizeSpecs(skuSizeSpecs)
-            .build();
-    }
-
-    private GetResourceClusterSkuSizesResponse toGetResourceClusterSkuSizesErrorResponse(String errorMessage) {
-        return GetResourceClusterSkuSizesResponse
-            .builder()
-            .message(errorMessage)
-            .responseCode(ResponseCode.SERVER_ERROR)
             .build();
     }
 
