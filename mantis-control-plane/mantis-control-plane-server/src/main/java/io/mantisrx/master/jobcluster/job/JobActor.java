@@ -1212,14 +1212,14 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             } catch (Exception e) {
                 if (pendingFlushCnt.incrementAndGet() > MAX_PENDING_FLUSH_CNT) {
                     LOGGER.warn("Exception setting next Worker number to use, " +
-                        "{} (out of {}) consecutive failed attempts. Marked PENDING as pending!",
+                        "{} (out of {}) consecutive failed attempts. Marked write as PENDING!",
                         pendingFlushCnt.get(), MAX_PENDING_FLUSH_CNT, e);
+                    return;
                 }
                 hasErrored = true;
                 LOGGER.error("Exception setting next Worker number to use, " +
                     "{} consecutive failed attempts", MAX_PENDING_FLUSH_CNT, e);
                 throw new RuntimeException("Unexpected error setting next worker number to use", e);
-
             }
         }
 
