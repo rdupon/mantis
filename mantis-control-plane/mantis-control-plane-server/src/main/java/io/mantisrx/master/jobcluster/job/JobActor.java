@@ -75,6 +75,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1176,6 +1177,8 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         private int currLimit;
 
         private volatile boolean hasErrored = false;
+        private final AtomicInteger pendingFlushCnt = new AtomicInteger(0);
+        private static final int MAX_PENDING_FLUSH_CNT = 5;
 
         /**
          * Creates an instance of this class.
@@ -1187,7 +1190,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
             Preconditions.checkArgument(lastUsed >= 0,
                     "Last Used worker Number cannot be negative {} ", lastUsed);
             Preconditions.checkArgument(incrementStep >= 1,
-                    "incrementStepcannot be less than 1 {} ", incrementStep);
+                    "incrementStep cannot be less than 1 {} ", incrementStep);
 
             this.lastUsed = lastUsed;
             this.currLimit = lastUsed;
@@ -1202,21 +1205,28 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
         }
 
         private void advance(MantisJobMetadataImpl mantisJobMetaData, MantisJobStore jobStore) {
+            currLimit += incrementStep;
             try {
-                currLimit += incrementStep;
-
                 mantisJobMetaData.setNextWorkerNumberToUse(currLimit, jobStore);
+                pendingFlushCnt.set(0);
             } catch (Exception e) {
+                if (pendingFlushCnt.incrementAndGet() > MAX_PENDING_FLUSH_CNT) {
+                    LOGGER.warn("Exception setting next Worker number to use, " +
+                        "{} (out of {}) consecutive failed attempts. Marked PENDING as pending!",
+                        pendingFlushCnt.get(), MAX_PENDING_FLUSH_CNT, e);
+                }
                 hasErrored = true;
-                LOGGER.error("Exception setting next Worker number to use ", e);
+                LOGGER.error("Exception setting next Worker number to use, " +
+                    "{} consecutive failed attempts", MAX_PENDING_FLUSH_CNT, e);
                 throw new RuntimeException("Unexpected error setting next worker number to use", e);
+
             }
         }
 
         /**
          * Get the next unused worker number.
          * <p>
-         * For performance reasosns, this object updates state in persistence every N calls made to this method.
+         * For performance reasons, this object updates state in persistence every N calls made to this method.
          *
          * @return The next worker number to use for new workers
          * @throws IllegalStateException if there was an error saving the next worker number to use to the job store
