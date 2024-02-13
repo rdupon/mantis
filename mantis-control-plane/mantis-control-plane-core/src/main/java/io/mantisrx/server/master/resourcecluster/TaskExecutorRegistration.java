@@ -22,8 +22,12 @@ import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonCreator;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonIgnore;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonProperty;
 import io.mantisrx.shaded.com.google.common.collect.ImmutableMap;
+import java.util.AbstractMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -140,5 +144,29 @@ public class TaskExecutorRegistration {
         }
 
         return Optional.empty();
+    }
+
+    @JsonIgnore
+    public Map<String, String> getAllocationAttributes() {
+        if (taskExecutorAttributes == null) {
+            return new HashMap<>();
+        }
+
+        return taskExecutorAttributes.entrySet().stream()
+            .map(TaskExecutorRegistration::extractAllocationAttribute)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                entry -> getAttributeByKey(entry.getKey()).orElse(entry.getValue())
+            ));
+    }
+
+    @JsonIgnore
+    private static Optional<Map.Entry<String, String>> extractAllocationAttribute(Map.Entry<String, String> entry) {
+        final Matcher matcher = WorkerConstants.SCHEDULING_CONSTRAINT_PATTERN.matcher(entry.getKey());
+        return matcher.matches() ?
+            Optional.of(new AbstractMap.SimpleEntry<>(matcher.group(1), entry.getValue())) :
+            Optional.empty();
     }
 }

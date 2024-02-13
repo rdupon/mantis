@@ -128,7 +128,7 @@ public class ExecutorStateManagerTests {
             .taskExecutorAttributes(attributes);
     }
 
-    private final ExecutorStateManager stateManager = new ExecutorStateManagerImpl();
+    private final ExecutorStateManager stateManager = new ExecutorStateManagerImpl("");
 
     @Before
     public void setup() {
