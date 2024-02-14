@@ -30,13 +30,18 @@ import lombok.Value;
 @Value
 public class SchedulingConstraints {
     // Defines the resource constraints for scheduling
-    MachineDefinition machineDefinition;
+    SizeDefinition size;
 
     // Additional attributes for scheduling (ie. jdkVersion:17)
     Map<String, String> schedulingAttributes;
 
     @VisibleForTesting
     public static SchedulingConstraints of(MachineDefinition machineDefinition) {
-        return SchedulingConstraints.of(machineDefinition, ImmutableMap.of());
+        return SchedulingConstraints.of(SizeDefinition.of(machineDefinition), ImmutableMap.of());
+    }
+
+    @VisibleForTesting
+    public static SchedulingConstraints of(MachineDefinition machineDefinition, Map<String, String> schedulingAttributes) {
+        return SchedulingConstraints.of(SizeDefinition.of(machineDefinition), schedulingAttributes);
     }
 }

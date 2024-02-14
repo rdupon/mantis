@@ -503,4 +503,9 @@ public class MantisJobMetadataImpl implements IMantisJobMetadata {
     public Costs getJobCosts() {
         return jobCosts;
     }
+
+    @Override
+    public Optional<Map<String, String>> getStageAttributes(int stageNum) {
+        return Optional.ofNullable(jobDefinition.getSchedulingInfo().getStages().get(stageNum).getContainerAttributes());
+    }
 }

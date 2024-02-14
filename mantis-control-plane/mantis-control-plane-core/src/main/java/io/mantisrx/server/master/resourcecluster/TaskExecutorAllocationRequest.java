@@ -19,6 +19,8 @@ package io.mantisrx.server.master.resourcecluster;
 import io.mantisrx.server.core.domain.JobMetadata;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.core.scheduler.SchedulingConstraints;
+import io.mantisrx.shaded.com.google.common.collect.ImmutableMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
@@ -29,4 +31,15 @@ public class TaskExecutorAllocationRequest {
     SchedulingConstraints constraints;
     JobMetadata jobMetadata;
     int stageNum;
+
+    public Map<String, String> getTags() {
+        return ImmutableMap.<String, String>builder()
+            .putAll(ImmutableMap.of(
+                    "workerId",
+                    workerId.getId(),
+                    "jobCluster",
+                    workerId.getJobCluster()))
+            .putAll(constraints.getSize().getTags())
+            .build();
+    }
 }

@@ -20,6 +20,7 @@ import static io.mantisrx.master.StringConstants.MANTIS_MASTER_USER;
 import static io.mantisrx.master.events.LifecycleEventsProto.StatusEvent.StatusEventType.*;
 import static io.mantisrx.master.jobcluster.job.worker.MantisWorkerMetadataImpl.MANTIS_SYSTEM_ALLOCATED_NUM_PORTS;
 import static io.mantisrx.master.jobcluster.proto.BaseResponse.ResponseCode.*;
+import static io.mantisrx.server.core.scheduler.SizeDefinition.SIZE_LABEL;
 import static java.util.Optional.*;
 
 import akka.actor.*;
@@ -53,6 +54,7 @@ import io.mantisrx.server.core.domain.JobArtifact;
 import io.mantisrx.server.core.domain.JobMetadata;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.core.scheduler.SchedulingConstraints;
+import io.mantisrx.server.core.scheduler.SizeDefinition;
 import io.mantisrx.server.master.ConstraintsEvaluators;
 import io.mantisrx.server.master.InvalidJobRequest;
 import io.mantisrx.server.master.agentdeploy.MigrationStrategyFactory;
@@ -1584,6 +1586,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                     getHeartbeatIntervalSecs(mantisJobMetaData),
                     mantisJobMetaData.getMinRuntimeSecs()
                 );
+                String sizeLabel = mantisJobMetaData.getStageAttributes(stageMetadata.getStageNum()).map(attrs -> attrs.get(SIZE_LABEL)).orElse(null);
                 ScheduleRequest sr = new ScheduleRequest(
                         workerId,
                         workerRequest.getStageNum(),
@@ -1592,7 +1595,7 @@ public class JobActor extends AbstractActorWithTimers implements IMantisJobManag
                         mantisJobMetaData.getSla().orElse(new JobSla.Builder().build()).getDurationType(),
                         // TODO(fdichiara): make this a property of JobStageMetadata. https://github.com/Netflix/mantis/pull/629/files#r1487043262
                         SchedulingConstraints.of(
-                            stageMetadata.getMachineDefinition(),
+                            SizeDefinition.of(stageMetadata.getMachineDefinition(), sizeLabel),
                             mergeJobDefAndArtifactAssigmentAttributes(jobMetadata.getJobArtifact())),
                         hardConstraints,
                         softConstraints,

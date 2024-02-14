@@ -23,6 +23,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.Status;
 import akka.japi.pf.ReceiveBuilder;
+import com.netflix.spectator.api.Tag;
 import com.netflix.spectator.api.TagList;
 import io.mantisrx.common.Ack;
 import io.mantisrx.common.WorkerConstants;
@@ -627,19 +628,21 @@ class ResourceClusterActor extends AbstractActorWithTimers {
         } else {
             request.allocationRequests.forEach(req -> metrics.incrementCounter(
                 ResourceClusterActorMetrics.NO_RESOURCES_AVAILABLE,
-                TagList.create(ImmutableMap.of(
-                    "resourceCluster",
-                    clusterID.getResourceID(),
-                    "workerId",
-                    req.getWorkerId().getId(),
-                    "jobCluster",
-                    req.getWorkerId().getJobCluster(),
-                    "cpuCores",
-                    String.valueOf(req.getConstraints().getMachineDefinition().getCpuCores())))));
+                getTagsFrom(req)));
             sender().tell(new Status.Failure(new NoResourceAvailableException(
                 String.format("No resource available for request %s: resource overview: %s", request,
                     getResourceOverview()))), self());
         }
+    }
+
+    private Iterable<Tag> getTagsFrom(TaskExecutorAllocationRequest req) {
+        ImmutableMap<String, String> tags = ImmutableMap.<String, String>builder()
+            .putAll(ImmutableMap.of(
+                "resourceCluster",
+                clusterID.getResourceID()))
+            .putAll(req.getTags())
+            .build();
+        return TagList.create(tags);
     }
 
     private void assignTaskExecutor(TaskExecutorAllocationRequest allocationRequest, TaskExecutorID taskExecutorID, TaskExecutorState taskExecutorState, TaskExecutorBatchAssignmentRequest request) {

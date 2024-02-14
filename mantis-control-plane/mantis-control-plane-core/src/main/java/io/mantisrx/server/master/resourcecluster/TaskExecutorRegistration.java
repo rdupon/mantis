@@ -15,9 +15,12 @@
  */
 package io.mantisrx.server.master.resourcecluster;
 
+import static io.mantisrx.server.core.scheduler.SizeDefinition.SIZE_LABEL;
+
 import io.mantisrx.common.WorkerConstants;
 import io.mantisrx.common.WorkerPorts;
 import io.mantisrx.runtime.MachineDefinition;
+import io.mantisrx.server.core.scheduler.SizeDefinition;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonCreator;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonIgnore;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonProperty;
@@ -163,13 +166,15 @@ public class TaskExecutorRegistration {
 
     @JsonIgnore
     public TaskExecutorGroupKey getTaskExecutorGroupKey() {
-        return new TaskExecutorGroupKey(machineDefinition, getSchedulingAttributes());
+        return new TaskExecutorGroupKey(
+            SizeDefinition.of(machineDefinition, getAttributeByKey(SIZE_LABEL).orElse(null)),
+            getSchedulingAttributes());
     }
 
     @Value
     @AllArgsConstructor
     public static class TaskExecutorGroupKey {
-        MachineDefinition machineDefinition;
+        SizeDefinition sizeDefinition;
         Map<String, String> schedulingAttributes;
     }
 }

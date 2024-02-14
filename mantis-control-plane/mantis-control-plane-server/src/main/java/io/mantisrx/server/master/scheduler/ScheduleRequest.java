@@ -111,22 +111,22 @@ public class ScheduleRequest implements QueuableTask {
 
     @Override
     public double getCPUs() {
-        return schedulingConstraints.getMachineDefinition().getCpuCores();
+        return schedulingConstraints.getSize().getMachineDefinition().getCpuCores();
     }
 
     @Override
     public double getMemory() {
-        return schedulingConstraints.getMachineDefinition().getMemoryMB();
+        return schedulingConstraints.getSize().getMachineDefinition().getMemoryMB();
     }
 
     @Override
     public double getNetworkMbps() {
-        return schedulingConstraints.getMachineDefinition().getNetworkMbps();
+        return schedulingConstraints.getSize().getMachineDefinition().getNetworkMbps();
     }
 
     @Override
     public double getDisk() {
-        return schedulingConstraints.getMachineDefinition().getDiskMB();
+        return schedulingConstraints.getSize().getMachineDefinition().getDiskMB();
     }
 
     @Override
@@ -139,7 +139,7 @@ public class ScheduleRequest implements QueuableTask {
     }
 
     public MachineDefinition getMachineDefinition() {
-        return schedulingConstraints.getMachineDefinition();
+        return schedulingConstraints.getSize().getMachineDefinition();
     }
 
     public SchedulingConstraints getSchedulingConstraints() {

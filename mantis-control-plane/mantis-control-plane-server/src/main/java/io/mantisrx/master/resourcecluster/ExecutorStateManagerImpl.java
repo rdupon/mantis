@@ -30,6 +30,7 @@ import io.mantisrx.master.scheduler.FitnessCalculator;
 import io.mantisrx.runtime.MachineDefinition;
 import io.mantisrx.server.core.domain.WorkerId;
 import io.mantisrx.server.core.scheduler.SchedulingConstraints;
+import io.mantisrx.server.core.scheduler.SizeDefinition;
 import io.mantisrx.server.master.resourcecluster.ContainerSkuID;
 import io.mantisrx.server.master.resourcecluster.ResourceCluster.ResourceOverview;
 import io.mantisrx.server.master.resourcecluster.TaskExecutorAllocationRequest;
@@ -89,7 +90,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         }
 
         private TaskExecutorGroupKey findBestFitGroupOrDefault(SchedulingConstraints constraints) {
-            return findBestGroup(constraints).orElse(new TaskExecutorGroupKey(constraints.getMachineDefinition(), constraints.getSchedulingAttributes()));
+            return findBestGroup(constraints).orElse(new TaskExecutorGroupKey(constraints.getSize(), constraints.getSchedulingAttributes()));
         }
     }
 
@@ -480,15 +481,14 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         if (taskExecutors.isPresent() && taskExecutors.get().size() == allocationRequests.size()) {
             return taskExecutors;
         } else {
-            MachineDefinition machineDefinition = schedulingConstraints.getMachineDefinition();
-            log.warn("Not enough available TEs found for machine def {} with core count: {}, request: {}",
-                machineDefinition, machineDefinition.getCpuCores(), request);
+            SizeDefinition size = schedulingConstraints.getSize();
+            log.warn("Not enough available TEs found for size {}, request: {}", size, request);
 
             // If there are not enough workers with the given spec then add the request the pending ones
             if (!isJobIdAlreadyPending && request.getAllocationRequests().size() > 2) {
                 // Add jobId to pending requests only once
                 if (pendingJobRequests.getIfPresent(request.getJobId()) == null) {
-                    log.info("Adding job {} to pending requests for {} machine {}", request.getJobId(), allocationRequests.size(), machineDefinition);
+                    log.info("Adding job {} to pending requests for {} machine {}", request.getJobId(), allocationRequests.size(), size);
                     pendingJobRequests.put(request.getJobId(), new JobRequirements(request.getGroupedByConstraintsCount()));
                 }
             }
@@ -516,7 +516,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
             // Map each TaskExecutorGroupKey to a Pair containing the key and its corresponding fitness score
             .map(key -> new AbstractMap.SimpleEntry<>(
                 key,
-                fitnessCalculator.calculate(requestedConstraints.getMachineDefinition(), key.getMachineDefinition())
+                calculateFitness(requestedConstraints.getSize(), key.getSizeDefinition())
             ))
             // Filter out entries with non-positive fitness scores
             .filter(entry -> entry.getValue() > 0)
@@ -524,6 +524,20 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
             .max(Entry.comparingByValue())
             // If a suitable entry was found, extract the TaskExecutorGroupKey
             .map(AbstractMap.SimpleEntry::getKey);
+    }
+
+    public double calculateFitness(SizeDefinition requestedSize, SizeDefinition teSize) {
+        if (requestedSize.getLabel() != null && teSize.getLabel() != null) {
+            if (requestedSize.getLabel().equalsIgnoreCase(teSize.getLabel())) {
+                return 1.0;
+            } else {
+                return 0.0;
+            }
+        }
+        if (requestedSize.getMachineDefinition() != null && teSize.getMachineDefinition() != null) {
+            return fitnessCalculator.calculate(requestedSize.getMachineDefinition(), teSize.getMachineDefinition());
+        }
+        return 0.0;
     }
 
     /**

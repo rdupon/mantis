@@ -23,6 +23,7 @@ import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonCreator;
 import io.mantisrx.shaded.com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Singular;
@@ -89,6 +90,7 @@ public class MantisResourceClusterSpec {
 
         String imageId;
 
+        // TODO(fdichiara): drop these 4 values in favor of size. kept for backward compatibility during sizeID rollout.
         int cpuCoreCount;
 
         int memorySizeInMB;
@@ -100,6 +102,9 @@ public class MantisResourceClusterSpec {
         @Singular
         Map<String, String> skuMetadataFields;
 
+        @Nullable
+        SkuSizeSpec size;
+
         @JsonCreator
         public SkuTypeSpec(
                 @JsonProperty("skuId") final ContainerSkuID skuId,
@@ -109,7 +114,8 @@ public class MantisResourceClusterSpec {
                 @JsonProperty("memorySizeInBytes") final int memorySizeInMB,
                 @JsonProperty("networkMbps") final int networkMbps,
                 @JsonProperty("diskSizeInBytes") final int diskSizeInMB,
-                @JsonProperty("skuMetadataFields") final Map<String, String> skuMetadataFields) {
+                @JsonProperty("skuMetadataFields") final Map<String, String> skuMetadataFields,
+                @JsonProperty("size") final SkuSizeSpec size) {
             this.skuId = skuId;
             this.capacity = capacity;
             this.imageId = imageId;
@@ -118,6 +124,11 @@ public class MantisResourceClusterSpec {
             this.networkMbps = networkMbps;
             this.diskSizeInMB = diskSizeInMB;
             this.skuMetadataFields = skuMetadataFields;
+            this.size = size;
+        }
+
+        public boolean isSizeValid() {
+            return size == null ? cpuCoreCount >= 1 && diskSizeInMB >= 1 && memorySizeInMB >= 1 && networkMbps >= 1 : size.isSizeValid();
         }
     }
 
