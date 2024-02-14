@@ -865,14 +865,14 @@ class ResourceClusterActor extends AbstractActorWithTimers {
                 .collect(Collectors.groupingBy(TaskExecutorAllocationRequest::getConstraints));
         }
 
-        public Map<Double, Integer> getGroupedByCoresCount() {
+        public Map<SchedulingConstraints, Integer> getGroupedByConstraintsCount() {
             return allocationRequests
                 .stream()
-                .collect(Collectors.groupingBy(a -> a.getConstraints().getMachineDefinition()))
+                .collect(Collectors.groupingBy(TaskExecutorAllocationRequest::getConstraints))
                 .entrySet()
                 .stream()
                 .collect(Collectors.toMap(
-                    e -> e.getKey().getCpuCores(),
+                    Entry::getKey,
                     e -> e.getValue().size(),
                     Integer::sum
                 ));

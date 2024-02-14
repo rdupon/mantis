@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.Builder;
-import lombok.RequiredArgsConstructor;
+import lombok.Getter;
 import lombok.ToString;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -72,13 +72,24 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         })
         .build();
 
-    @RequiredArgsConstructor
+    @Getter
     @ToString
-    static class JobRequirements {
-        public final Map<Double, Integer> coresToWorkerCount;
+    class JobRequirements {
+        private final Map<TaskExecutorGroupKey, Integer> groupToTaskExecutorCount;
+
+        JobRequirements(Map<SchedulingConstraints, Integer> constraintsToTaskExecutorCount) {
+            this.groupToTaskExecutorCount = constraintsToTaskExecutorCount
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(entry -> findBestFitGroupOrDefault(entry.getKey()), Map.Entry::getValue));
+        }
 
         public int getTotalWorkers() {
-            return coresToWorkerCount.values().stream().mapToInt(Integer::intValue).sum();
+            return groupToTaskExecutorCount.values().stream().mapToInt(Integer::intValue).sum();
+        }
+
+        private TaskExecutorGroupKey findBestFitGroupOrDefault(SchedulingConstraints constraints) {
+            return findBestGroup(constraints).orElse(new TaskExecutorGroupKey(constraints.getMachineDefinition(), constraints.getSchedulingAttributes()));
         }
     }
 
@@ -425,7 +436,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
             if (!pendingCountByGroupKey.containsKey(groupKey)) {
                 pendingCountByGroupKey.put(
                     groupKey,
-                    getPendingCountyByCores(value.getRegistration().getMachineDefinition().getCpuCores()));
+                    getPendingCountyByTaskExecutorGroup(value.getRegistration().getTaskExecutorGroupKey()));
             }
         });
 
@@ -450,12 +461,12 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
         return res;
     }
 
-    private int getPendingCountyByCores(Double cores) {
+    private int getPendingCountyByTaskExecutorGroup(TaskExecutorGroupKey teGroup) {
         return pendingJobRequests
             .asMap()
             .values()
             .stream()
-            .map(req -> req.coresToWorkerCount.getOrDefault(cores, 0))
+            .map(req -> req.getGroupToTaskExecutorCount().getOrDefault(teGroup, 0))
             .reduce(Integer::sum)
             .orElse(0);
     }
@@ -478,7 +489,7 @@ class ExecutorStateManagerImpl implements ExecutorStateManager {
                 // Add jobId to pending requests only once
                 if (pendingJobRequests.getIfPresent(request.getJobId()) == null) {
                     log.info("Adding job {} to pending requests for {} machine {}", request.getJobId(), allocationRequests.size(), machineDefinition);
-                    pendingJobRequests.put(request.getJobId(), new JobRequirements(request.getGroupedByCoresCount()));
+                    pendingJobRequests.put(request.getJobId(), new JobRequirements(request.getGroupedByConstraintsCount()));
                 }
             }
             return Optional.empty();
